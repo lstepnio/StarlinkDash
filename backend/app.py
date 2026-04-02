@@ -63,6 +63,18 @@ def _parse_cors_origins() -> list[str]:
         return []
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
+
+def _origin_allowed(origin: str | None, host: str | None) -> bool:
+    if not origin:
+        return True
+    if origin in CORS_ALLOWED_ORIGINS:
+        return True
+    if host:
+        for scheme in ("http", "https"):
+            if origin == f"{scheme}://{host}":
+                return True
+    return False
+
 STATIC_DIR = Path(os.environ.get("STATIC_DIR", "../frontend/dist"))
 STARLINK_TARGET = os.environ.get("STARLINK_TARGET", "192.168.100.1:9200")
 DB_PATH = _env_path("DB_PATH", "/data/starlinkdash.db")
@@ -1808,7 +1820,8 @@ async def get_config():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     origin = websocket.headers.get("origin")
-    if CORS_ALLOWED_ORIGINS and origin and origin not in CORS_ALLOWED_ORIGINS:
+    host = websocket.headers.get("x-forwarded-host") or websocket.headers.get("host")
+    if CORS_ALLOWED_ORIGINS and not _origin_allowed(origin, host):
         await websocket.close(code=1008)
         return
     await websocket.accept()

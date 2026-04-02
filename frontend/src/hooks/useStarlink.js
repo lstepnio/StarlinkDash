@@ -73,6 +73,15 @@ export function useStarlink() {
     } catch { /* ignore */ }
   }, []);
 
+  const fetchStatus = useCallback(async () => {
+    try {
+      const data = await fetchJson('/api/status');
+      if (data && Object.keys(data).length) {
+        setStatus(data);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   // Fetch persisted history from SQLite
   const fetchHistory = useCallback(async () => {
     try {
@@ -165,6 +174,7 @@ export function useStarlink() {
   useEffect(() => {
     function refreshCore() {
       fetchConfig();
+      fetchStatus();
       fetchHistory();
       fetchBulk();
       fetchObstruction();
@@ -182,7 +192,7 @@ export function useStarlink() {
       clearTimeout(initialTimer);
       clearInterval(interval);
     };
-  }, [fetchConfig, fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchFailover]);
+  }, [fetchConfig, fetchStatus, fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchFailover]);
 
   // Optional integrations poll only when enabled
   useEffect(() => {

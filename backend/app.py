@@ -1,24 +1,72 @@
 import asyncio
 import json
+import logging
 import os
 import sqlite3
 import threading
 import time
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
 import starlink_grpc
 
+logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+log = logging.getLogger("starlinkdash")
+
+CONFIG_ERRORS: list[str] = []
+startup_time = time.time()
+
+
+def _env_int(name: str, default: int, *, min_value: int | None = None, max_value: int | None = None) -> int:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        value = default
+    else:
+        try:
+            value = int(raw)
+        except ValueError:
+            CONFIG_ERRORS.append(f"{name} must be an integer")
+            return default
+    if min_value is not None and value < min_value:
+        CONFIG_ERRORS.append(f"{name} must be >= {min_value}")
+        return default
+    if max_value is not None and value > max_value:
+        CONFIG_ERRORS.append(f"{name} must be <= {max_value}")
+        return default
+    return value
+
+
+def _env_path(name: str, default: str) -> str:
+    raw = os.environ.get(name, default).strip()
+    if not raw:
+        CONFIG_ERRORS.append(f"{name} must not be empty")
+        return default
+    return raw
+
+
+def _parse_cors_origins() -> list[str]:
+    raw = os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5199,http://127.0.0.1:5199",
+    ).strip()
+    if not raw:
+        return []
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
 STATIC_DIR = Path(os.environ.get("STATIC_DIR", "../frontend/dist"))
 STARLINK_TARGET = os.environ.get("STARLINK_TARGET", "192.168.100.1:9200")
-DB_PATH = os.environ.get("DB_PATH", "/data/starlinkdash.db")
-POLL_INTERVAL = int(os.environ.get("STARLINK_POLL_INTERVAL", "10"))
+DB_PATH = _env_path("DB_PATH", "/data/starlinkdash.db")
+POLL_INTERVAL = _env_int("STARLINK_POLL_INTERVAL", 10, min_value=5, max_value=300)
 OUTAGE_THRESHOLD = 15  # seconds before declaring an outage
 
 # Router (ERLite3) SNMP settings
@@ -27,27 +75,28 @@ ROUTER_COMMUNITY = os.environ.get("ROUTER_COMMUNITY", "")
 ROUTER_LAN_IFACE = os.environ.get("ROUTER_LAN_IFACE", "eth0")
 ROUTER_WAN_IFACE = os.environ.get("ROUTER_WAN_IFACE", "eth1")
 ROUTER_WAN2_IFACE = os.environ.get("ROUTER_WAN2_IFACE", "eth2")
-ROUTER_POLL_INTERVAL = int(os.environ.get("ROUTER_POLL_INTERVAL", "30"))
+ROUTER_POLL_INTERVAL = _env_int("ROUTER_POLL_INTERVAL", 30, min_value=10, max_value=600)
 
 # Speedtest Tracker integration
 SPEEDTEST_URL = os.environ.get("SPEEDTEST_URL", "").rstrip("/")
 SPEEDTEST_API_TOKEN = os.environ.get("SPEEDTEST_API_TOKEN", "")
-SPEEDTEST_POLL_INTERVAL = int(os.environ.get("SPEEDTEST_POLL_INTERVAL", "300"))  # 5 min
+SPEEDTEST_POLL_INTERVAL = _env_int("SPEEDTEST_POLL_INTERVAL", 300, min_value=60, max_value=86400)  # 5 min
 
 # Uptime Kuma integration
 UPTIME_KUMA_URL = os.environ.get("UPTIME_KUMA_URL", "").rstrip("/")
 UPTIME_KUMA_API_KEY = os.environ.get("UPTIME_KUMA_API_KEY", "")
-UPTIME_KUMA_POLL_INTERVAL = int(os.environ.get("UPTIME_KUMA_POLL_INTERVAL", "60"))
+UPTIME_KUMA_POLL_INTERVAL = _env_int("UPTIME_KUMA_POLL_INTERVAL", 60, min_value=15, max_value=3600)
 
 # Tautulli (Plex monitoring) integration
 TAUTULLI_URL = os.environ.get("TAUTULLI_URL", "").rstrip("/")
 TAUTULLI_API_KEY = os.environ.get("TAUTULLI_API_KEY", "")
-TAUTULLI_POLL_INTERVAL = int(os.environ.get("TAUTULLI_POLL_INTERVAL", "30"))
+TAUTULLI_POLL_INTERVAL = _env_int("TAUTULLI_POLL_INTERVAL", 30, min_value=15, max_value=3600)
 
 # Data retention
-RETENTION_STARLINK_DAYS = int(os.environ.get("RETENTION_STARLINK_DAYS", "30"))
-RETENTION_ROUTER_DAYS   = int(os.environ.get("RETENTION_ROUTER_DAYS",   "30"))
-RETENTION_SPEEDTEST_DAYS = int(os.environ.get("RETENTION_SPEEDTEST_DAYS", "365"))
+RETENTION_STARLINK_DAYS = _env_int("RETENTION_STARLINK_DAYS", 30, min_value=1, max_value=3650)
+RETENTION_ROUTER_DAYS   = _env_int("RETENTION_ROUTER_DAYS",   30, min_value=1, max_value=3650)
+RETENTION_SPEEDTEST_DAYS = _env_int("RETENTION_SPEEDTEST_DAYS", 365, min_value=1, max_value=3650)
+CORS_ALLOWED_ORIGINS = _parse_cors_origins()
 
 latest_status: dict[str, Any] = {}
 latest_router: dict[str, Any] = {}
@@ -55,6 +104,13 @@ latest_uptime_monitors: list[dict] = []
 latest_tautulli: dict[str, Any] = {}
 latest_tautulli_error: str | None = None
 connected_clients: set[WebSocket] = set()
+service_status: dict[str, dict[str, Any]] = {
+    "starlink": {"enabled": True, "healthy": False, "last_ok": None, "last_error": None},
+    "router": {"enabled": bool(ROUTER_TARGET and ROUTER_COMMUNITY), "healthy": False, "last_ok": None, "last_error": None},
+    "speedtest": {"enabled": bool(SPEEDTEST_URL and SPEEDTEST_API_TOKEN), "healthy": False, "last_ok": None, "last_error": None},
+    "uptime_kuma": {"enabled": bool(UPTIME_KUMA_URL and UPTIME_KUMA_API_KEY), "healthy": False, "last_ok": None, "last_error": None},
+    "tautulli": {"enabled": bool(TAUTULLI_URL and TAUTULLI_API_KEY), "healthy": False, "last_ok": None, "last_error": None},
+}
 
 # Failover state tracking
 _last_active_wan: str | None = None
@@ -71,6 +127,30 @@ def _get_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
+
+
+def _record_service_ok(name: str):
+    service_status[name]["healthy"] = True
+    service_status[name]["last_ok"] = time.time()
+    service_status[name]["last_error"] = None
+
+
+def _record_service_error(name: str, message: str):
+    service_status[name]["healthy"] = False
+    service_status[name]["last_error"] = message
+
+
+def _public_error(message: str, *, code: str) -> dict[str, str]:
+    return {"code": code, "message": message}
+
+
+def _health_report() -> dict[str, Any]:
+    return {
+        "status": "ok" if not CONFIG_ERRORS else "degraded",
+        "uptime_s": round(time.time() - startup_time, 1),
+        "config_errors": CONFIG_ERRORS,
+        "services": service_status,
+    }
 
 
 def init_db():
@@ -544,8 +624,15 @@ def _refresh_ip_cache(iface_map: dict[str, int]):
 def fetch_router_status() -> dict[str, Any]:
     global _router_iface_map, _router_prev
 
+    if not ROUTER_TARGET or not ROUTER_COMMUNITY:
+        msg = "Router SNMP is not configured. Set ROUTER_TARGET and ROUTER_COMMUNITY."
+        _record_service_error("router", msg)
+        return {"error": msg, "timestamp": time.time()}
+
     if not _snmp_available:
-        return {"error": "pysnmp not installed", "timestamp": time.time()}
+        msg = "Router SNMP support is unavailable because pysnmp is not installed."
+        _record_service_error("router", msg)
+        return {"error": msg, "timestamp": time.time()}
 
     with _router_iface_lock:
         if not _router_iface_map:
@@ -590,7 +677,9 @@ def fetch_router_status() -> dict[str, Any]:
     if data is None:
         with _router_iface_lock:
             _router_iface_map = {}
-        return {"error": "SNMP unreachable", "timestamp": time.time()}
+        msg = "Router SNMP query failed. Check reachability, community string, and SNMP enablement."
+        _record_service_error("router", msg)
+        return {"error": msg, "timestamp": time.time()}
 
     now = time.time()
 
@@ -705,6 +794,7 @@ def fetch_router_status() -> dict[str, Any]:
             elif data.get(fallback_key) is not None:
                 new_prev[fallback_key] = data.get(fallback_key)
     _router_prev = new_prev
+    _record_service_ok("router")
 
     return {
         "timestamp": now,
@@ -897,6 +987,7 @@ def fetch_status() -> dict[str, Any]:
     try:
         ctx = _get_context()
         header, body, alerts = starlink_grpc.status_data(ctx)
+        _record_service_ok("starlink")
         return {
             "header": header or {},
             "body": body or {},
@@ -905,8 +996,11 @@ def fetch_status() -> dict[str, Any]:
             "error": None,
         }
     except Exception as e:
+        log.warning("Starlink status fetch failed: %s", e)
         _reset_context()
-        return {"header": {}, "body": {}, "alerts": {}, "timestamp": time.time(), "error": str(e)}
+        msg = "Unable to reach the Starlink dish. Check STARLINK_TARGET and local network connectivity."
+        _record_service_error("starlink", msg)
+        return {"header": {}, "body": {}, "alerts": {}, "timestamp": time.time(), "error": msg}
 
 
 def fetch_history_bulk() -> dict[str, Any]:
@@ -914,16 +1008,22 @@ def fetch_history_bulk() -> dict[str, Any]:
         ctx = _get_context()
         result = starlink_grpc.history_bulk_data(parse_samples=900, context=ctx)
         if result is None:
-            return {"error": "No history data"}
+            msg = "No Starlink history data is currently available."
+            _record_service_error("starlink", msg)
+            return {"error": msg}
         general, bulk = result
         out: dict[str, Any] = {"general": general or {}, "error": None}
         if bulk:
             for key, values in bulk.items():
                 out[key] = list(values) if isinstance(values, (list, tuple)) else values
+        _record_service_ok("starlink")
         return out
     except Exception as e:
+        log.warning("Starlink bulk history fetch failed: %s", e)
         _reset_context()
-        return {"error": str(e)}
+        msg = "Unable to fetch Starlink bulk history."
+        _record_service_error("starlink", msg)
+        return {"error": msg}
 
 
 def fetch_obstruction_map() -> dict[str, Any]:
@@ -931,14 +1031,18 @@ def fetch_obstruction_map() -> dict[str, Any]:
         ctx = _get_context()
         result = starlink_grpc.obstruction_map(ctx)
         if result is None:
-            return {"error": "No obstruction data"}
+            return {"error": "No obstruction data is currently available."}
         rows = len(result)
         cols = len(result[0]) if rows > 0 else 0
         flat = [v for row in result for v in row]
+        _record_service_ok("starlink")
         return {"snr": flat, "rows": rows, "cols": cols, "error": None}
     except Exception as e:
+        log.warning("Starlink obstruction fetch failed: %s", e)
         _reset_context()
-        return {"error": str(e)}
+        msg = "Unable to fetch Starlink obstruction data."
+        _record_service_error("starlink", msg)
+        return {"error": msg}
 
 
 # ---------------------------------------------------------------------------
@@ -965,7 +1069,7 @@ def _poll_thread():
             try:
                 _broadcast_queue.put_nowait(status)
             except Exception:
-                pass
+                log.debug("Broadcast queue full or unavailable; dropping status update")
 
         tick += 1
         if tick >= 10:
@@ -1006,9 +1110,12 @@ def _speedtest_api_get(path: str) -> dict | None:
     })
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
+            _record_service_ok("speedtest")
             return json.loads(resp.read().decode())
     except Exception as e:
-        print(f"[Speedtest] API error: {e}")
+        msg = "Speedtest Tracker API request failed."
+        _record_service_error("speedtest", msg)
+        log.warning("Speedtest API error: %s", e)
         return None
 
 
@@ -1101,7 +1208,7 @@ def sync_speedtest_results(backfill: bool = False):
             break
 
     if inserted:
-        print(f"[Speedtest] Synced {inserted} new result(s) (from page {last_page})")
+        log.info("Speedtest sync inserted %s new result(s) from page %s", inserted, last_page)
 
 
 def query_speedtest_history(hours: float = 24.0) -> list[dict]:
@@ -1157,9 +1264,9 @@ def run_retention_cleanup():
                          (now - RETENTION_ROUTER_DAYS * 86400,))
             conn.commit()
             conn.close()
-            print("[Retention] Cleanup complete")
+            log.info("Retention cleanup complete")
         except Exception as e:
-            print(f"[Retention] Cleanup error: {e}")
+            log.warning("Retention cleanup error: %s", e)
 
 
 # ---------------------------------------------------------------------------
@@ -1176,9 +1283,12 @@ def _fetch_uk_metrics() -> str | None:
     req = urllib.request.Request(url, headers={"Authorization": f"Basic {creds}"})
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
+            _record_service_ok("uptime_kuma")
             return r.read().decode("utf-8")
     except Exception as e:
-        print(f"[UptimeKuma] Metrics fetch error: {e}")
+        msg = "Uptime Kuma metrics request failed."
+        _record_service_error("uptime_kuma", msg)
+        log.warning("Uptime Kuma metrics fetch error: %s", e)
         return None
 
 
@@ -1237,7 +1347,7 @@ def _uptime_kuma_poll_thread():
                 monitors = _parse_uk_metrics(text)
                 latest_uptime_monitors = monitors
         except Exception as e:
-            print(f"[UptimeKuma] Poll error: {e}")
+            log.warning("Uptime Kuma poll error: %s", e)
         time.sleep(max(0, UPTIME_KUMA_POLL_INTERVAL - (time.time() - t0)))
 
 
@@ -1261,12 +1371,15 @@ def _tautulli_api(cmd: str, **params) -> dict | None:
             response = data.get("response", {})
             if response.get("result") != "success":
                 latest_tautulli_error = response.get("message") or f"Tautulli API command failed: {cmd}"
+                _record_service_error("tautulli", latest_tautulli_error)
                 return None
             latest_tautulli_error = None
+            _record_service_ok("tautulli")
             return response.get("data")
     except Exception as e:
         latest_tautulli_error = str(e)
-        print(f"[Tautulli] API error ({cmd}): {e}")
+        _record_service_error("tautulli", "Tautulli API request failed.")
+        log.warning("Tautulli API error (%s): %s", cmd, e)
         return None
 
 
@@ -1366,12 +1479,12 @@ def _tautulli_poll_thread():
         try:
             latest_tautulli = fetch_tautulli_status()
         except Exception as e:
-            print(f"[Tautulli] Poll error: {e}")
+            log.warning("Tautulli poll error: %s", e)
         time.sleep(max(0, TAUTULLI_POLL_INTERVAL - (time.time() - t0)))
 
 
 def _speedtest_poll_thread():
-    print(f"[Speedtest] Thread started (URL={SPEEDTEST_URL})")
+    log.info("Speedtest sync thread started")
     # Backfill on first run if DB is empty
     try:
         with _db_lock:
@@ -1379,14 +1492,14 @@ def _speedtest_poll_thread():
             count = conn.execute("SELECT COUNT(*) FROM speedtest_results").fetchone()[0]
             conn.close()
     except Exception as e:
-        print(f"[Speedtest] DB check error: {e}")
+        log.warning("Speedtest DB check error: %s", e)
         count = 0
     if count == 0:
-        print("[Speedtest] Empty DB — backfilling up to 7 pages of history…")
+        log.info("Speedtest DB empty; backfilling recent history")
         try:
             sync_speedtest_results(backfill=True)
         except Exception as e:
-            print(f"[Speedtest] Backfill error: {e}")
+            log.warning("Speedtest backfill error: %s", e)
 
     _cleanup_tick = 0
     while True:
@@ -1394,14 +1507,14 @@ def _speedtest_poll_thread():
         try:
             sync_speedtest_results()
         except Exception as e:
-            print(f"[Speedtest] Sync error: {e}")
+            log.warning("Speedtest sync error: %s", e)
         _cleanup_tick += 1
         if _cleanup_tick >= 12:   # run retention cleanup every ~hour (12 × 5 min)
             _cleanup_tick = 0
             try:
                 run_retention_cleanup()
             except Exception as e:
-                print(f"[Speedtest] Cleanup error: {e}")
+                log.warning("Speedtest cleanup error: %s", e)
         time.sleep(max(0, SPEEDTEST_POLL_INTERVAL - (time.time() - t0)))
 
 
@@ -1438,13 +1551,24 @@ async def _broadcast_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _broadcast_queue
+    if CONFIG_ERRORS:
+        for error in CONFIG_ERRORS:
+            log.error("Configuration error: %s", error)
+    else:
+        log.info("Configuration validation passed")
     init_db()
     _broadcast_queue = asyncio.Queue()
     threading.Thread(target=_poll_thread, daemon=True).start()
-    threading.Thread(target=_router_poll_thread, daemon=True).start()
-    threading.Thread(target=_speedtest_poll_thread, daemon=True).start()
-    threading.Thread(target=_uptime_kuma_poll_thread, daemon=True).start()
-    threading.Thread(target=_tautulli_poll_thread, daemon=True).start()
+    if service_status["router"]["enabled"]:
+        threading.Thread(target=_router_poll_thread, daemon=True).start()
+    else:
+        latest_router.update({"error": "Router SNMP is not configured.", "timestamp": time.time()})
+    if service_status["speedtest"]["enabled"]:
+        threading.Thread(target=_speedtest_poll_thread, daemon=True).start()
+    if service_status["uptime_kuma"]["enabled"]:
+        threading.Thread(target=_uptime_kuma_poll_thread, daemon=True).start()
+    if service_status["tautulli"]["enabled"]:
+        threading.Thread(target=_tautulli_poll_thread, daemon=True).start()
     broadcast_task = asyncio.create_task(_broadcast_loop())
     yield
     broadcast_task.cancel()
@@ -1453,11 +1577,49 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="StarlinkDash API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=CORS_ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET"],
+    allow_headers=["Accept", "Content-Type", "Origin"],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+    try:
+        response = await call_next(request)
+    except Exception:
+        log.exception("Unhandled error for %s %s request_id=%s", request.method, request.url.path, request_id)
+        response = JSONResponse(
+            status_code=500,
+            content={"error": _public_error("Internal server error", code="internal_error")},
+        )
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
+
+
+@app.get("/healthz")
+async def healthz():
+    return _health_report()
+
+
+@app.get("/api/health")
+async def api_health():
+    return _health_report()
+
+
+@app.get("/readyz")
+async def readyz(response: Response):
+    report = _health_report()
+    if CONFIG_ERRORS:
+        response.status_code = 503
+    return report
 
 
 @app.get("/api/status")
@@ -1577,6 +1739,10 @@ async def get_config():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    origin = websocket.headers.get("origin")
+    if CORS_ALLOWED_ORIGINS and origin and origin not in CORS_ALLOWED_ORIGINS:
+        await websocket.close(code=1008)
+        return
     await websocket.accept()
     connected_clients.add(websocket)
     try:

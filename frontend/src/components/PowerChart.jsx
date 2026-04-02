@@ -10,7 +10,7 @@ export default function PowerChart({ bulkHistory, history, timeRange }) {
     // Use per-second bulk data only for 15m range
     if (timeRange <= 0.25 && bulkHistory?.power_w?.length) {
       const power = bulkHistory.power_w;
-      const now = Date.now();
+      const now = bulkHistory.sampled_at_ms ?? 0;
       return {
         data: power.map((v, i) => ({
           ts: now - (power.length - 1 - i) * 1000,

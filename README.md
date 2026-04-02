@@ -46,6 +46,7 @@ Core:
 Optional integrations:
 
 - Router SNMP: `ROUTER_TARGET`, `ROUTER_COMMUNITY`, `ROUTER_LAN_IFACE`, `ROUTER_WAN_IFACE`, `ROUTER_WAN2_IFACE`
+  Leave `ROUTER_TARGET` and `ROUTER_COMMUNITY` empty to disable router polling.
 - Speedtest Tracker: `SPEEDTEST_URL`, `SPEEDTEST_API_TOKEN`
 - Uptime Kuma: `UPTIME_KUMA_URL`, `UPTIME_KUMA_API_KEY`
 - Tautulli: `TAUTULLI_URL`, `TAUTULLI_API_KEY`

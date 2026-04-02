@@ -51,7 +51,6 @@ export default function RouterChart({ routerHistory }) {
 
   // Stats
   const avgW1In  = wan.reduce((s, d) => s + d.wan1In,  0) / wan.length;
-  const avgW1Out = wan.reduce((s, d) => s + d.wan1Out, 0) / wan.length;
   const avgW2In  = wan.reduce((s, d) => s + d.wan2In,  0) / wan.length;
   const peakIn   = Math.max(...wan.map((d) => Math.max(d.wan1In, d.wan2In)));
 
@@ -94,11 +93,11 @@ export default function RouterChart({ routerHistory }) {
               formatter={(v, name) => [`${fmtBps(v * 1e6)}`, name]} />
             <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 11, color: '#64748b', paddingTop: 6 }} />
             <Area type="monotone" dataKey="wan1In"  stroke="#3b82f6" fill="url(#gW1In)"
-              strokeWidth={2} name="WAN1 In (ForceBB)" dot={false} isAnimationActive={false} />
+              strokeWidth={2} name="WAN1 In (Primary)" dot={false} isAnimationActive={false} />
             <Area type="monotone" dataKey="wan1Out" stroke="#6366f1" fill="none"
               strokeWidth={1.5} strokeDasharray="4 3" name="WAN1 Out" dot={false} isAnimationActive={false} />
             <Area type="monotone" dataKey="wan2In"  stroke="#f59e0b" fill="url(#gW2In)"
-              strokeWidth={2} name="WAN2 In (Starlink)" dot={false} isAnimationActive={false} />
+              strokeWidth={2} name="WAN2 In (Failover)" dot={false} isAnimationActive={false} />
             <Area type="monotone" dataKey="wan2Out" stroke="#f97316" fill="none"
               strokeWidth={1.5} strokeDasharray="4 3" name="WAN2 Out" dot={false} isAnimationActive={false} />
           </AreaChart>

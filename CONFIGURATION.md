@@ -48,6 +48,7 @@
 Notes:
 
 - `ROUTER_COMMUNITY` has no default for security reasons.
+- Leave `ROUTER_TARGET` and `ROUTER_COMMUNITY` empty to disable router polling.
 - If router SNMP is not configured, the router section remains visible but reports that configuration is missing.
 
 ## Speedtest Tracker
@@ -70,4 +71,3 @@ Notes:
 - Leave integrations unset unless you actively use them.
 - Prefer Docker secrets or platform secret stores over committing or baking credentials into images.
 - Rotate any secret that has been exposed outside a trusted secret store.
-

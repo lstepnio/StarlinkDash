@@ -2,7 +2,7 @@ IMAGE   ?= ghcr.io/YOUR_GITHUB_USER/starlinkdash
 TAG     ?= latest
 PLATFORM ?= linux/amd64
 
-.PHONY: build push release run up down restart logs clean
+.PHONY: build push release run up down restart logs clean lint test
 
 ## Build the production Docker image for linux/amd64
 build:
@@ -35,6 +35,14 @@ restart:
 ## Tail compose logs
 logs:
 	docker compose -f docker-compose.yml logs -f --tail=200
+
+## Run frontend lint checks
+lint:
+	cd frontend && npm run lint
+
+## Run backend smoke tests
+test:
+	python3 -m pytest -q backend/tests
 
 ## Remove stopped containers and dangling images
 clean:

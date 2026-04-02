@@ -14,11 +14,6 @@ const TYPE_ICON = {
   push: Activity,
 };
 
-function typeIcon(type) {
-  const Icon = TYPE_ICON[type] || Activity;
-  return Icon;
-}
-
 function cleanUrl(url) {
   if (!url || url === 'https://') return null;
   try { return new URL(url).hostname; } catch { return url; }
@@ -26,7 +21,7 @@ function cleanUrl(url) {
 
 function MonitorCard({ monitor }) {
   const s = STATUS_MAP[monitor.status] ?? STATUS_MAP[2];
-  const Icon = typeIcon(monitor.type);
+  const MonitorIcon = TYPE_ICON[monitor.type] ?? Activity;
   const displayHost = cleanUrl(monitor.url) || monitor.hostname || '';
 
   return (
@@ -34,7 +29,7 @@ function MonitorCard({ monitor }) {
       {/* Top row: icon + name + status badge */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <Icon size={11} className="text-slate-500 shrink-0 mt-0.5" strokeWidth={2} />
+          <MonitorIcon size={11} className="text-slate-500 shrink-0 mt-0.5" strokeWidth={2} />
           <span className="text-xs font-semibold text-slate-300 truncate leading-snug">{monitor.name}</span>
         </div>
         <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-widest shrink-0 ${s.bg} ${s.color}`}>

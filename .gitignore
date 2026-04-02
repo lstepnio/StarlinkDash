@@ -21,6 +21,7 @@ __pycache__/
 *.pyc
 backend/venv/
 .venv/
+.venv-ci/
 venv/
 
 .DS_Store

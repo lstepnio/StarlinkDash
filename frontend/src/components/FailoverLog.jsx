@@ -18,7 +18,7 @@ function fmtDuration(s) {
 }
 
 function wanLabel(wan) {
-  if (wan === 'wan1') return 'Primary (ForceBB)';
+  if (wan === 'wan1') return 'Primary uplink';
   if (wan === 'wan2') return 'Failover (Starlink)';
   return wan || '—';
 }

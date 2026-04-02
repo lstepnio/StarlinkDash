@@ -17,7 +17,7 @@ export default function ThroughputChart({ history, bulkHistory, timeRange }) {
     if (timeRange <= 0.25 && bulkHistory?.downlink_throughput_bps?.length) {
       const down = bulkHistory.downlink_throughput_bps;
       const up = bulkHistory.uplink_throughput_bps || [];
-      const now = Date.now();
+      const now = bulkHistory.sampled_at_ms ?? 0;
       const len = down.length;
       const points = [];
       for (let i = 0; i < len; i++) {

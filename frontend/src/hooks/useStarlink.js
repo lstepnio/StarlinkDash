@@ -34,33 +34,37 @@ export function useStarlink() {
   const wsRef = useRef(null);
   const reconnectTimer = useRef(null);
 
-  // WebSocket for real-time status
-  const connect = useCallback(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
-    wsRef.current = ws;
-
-    ws.onopen = () => setConnected(true);
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'status') {
-        setStatus(msg.data);
-      }
-    };
-    ws.onclose = () => {
-      setConnected(false);
-      reconnectTimer.current = setTimeout(connect, 3000);
-    };
-    ws.onerror = () => ws.close();
-  }, []);
-
   useEffect(() => {
+    let closedByCleanup = false;
+
+    function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+      wsRef.current = ws;
+
+      ws.onopen = () => setConnected(true);
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'status') {
+          setStatus(msg.data);
+        }
+      };
+      ws.onclose = () => {
+        setConnected(false);
+        if (!closedByCleanup) {
+          reconnectTimer.current = setTimeout(() => connect(), 3000);
+        }
+      };
+      ws.onerror = () => ws.close();
+    }
+
     connect();
     return () => {
+      closedByCleanup = true;
       clearTimeout(reconnectTimer.current);
       wsRef.current?.close();
     };
-  }, [connect]);
+  }, []);
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -81,7 +85,7 @@ export function useStarlink() {
   const fetchBulk = useCallback(async () => {
     try {
       const data = await fetchJson('/api/history/bulk');
-      if (!data.error) setBulkHistory(data);
+      if (!data.error) setBulkHistory({ ...data, sampled_at_ms: Date.now() });
     } catch { /* ignore */ }
   }, []);
 
@@ -159,15 +163,8 @@ export function useStarlink() {
 
   // Initial load + polling for always-on data
   useEffect(() => {
-    fetchConfig();
-    fetchHistory();
-    fetchBulk();
-    fetchObstruction();
-    fetchAlerts();
-    fetchOutages();
-    fetchRouter();
-    fetchFailover();
-    const interval = setInterval(() => {
+    function refreshCore() {
+      fetchConfig();
       fetchHistory();
       fetchBulk();
       fetchObstruction();
@@ -175,40 +172,52 @@ export function useStarlink() {
       fetchOutages();
       fetchRouter();
       fetchFailover();
+    }
+
+    const initialTimer = setTimeout(refreshCore, 0);
+    const interval = setInterval(() => {
+      refreshCore();
     }, 15000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
   }, [fetchConfig, fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchFailover]);
 
   // Optional integrations poll only when enabled
   useEffect(() => {
     if (!config) return;
 
-    if (config.speedtest_enabled) {
-      fetchSpeedtest();
-    } else {
-      setSpeedtestLatest(null);
-      setSpeedtestHistory([]);
+    function refreshOptional() {
+      if (config.speedtest_enabled) {
+        fetchSpeedtest();
+      } else {
+        setSpeedtestLatest(null);
+        setSpeedtestHistory([]);
+      }
+
+      if (config.uptime_kuma_enabled) {
+        fetchUptime();
+      } else {
+        setUptimeMonitors([]);
+      }
+
+      if (config.tautulli_enabled) {
+        fetchTautulli();
+      } else {
+        setTautulliData(null);
+      }
     }
 
-    if (config.uptime_kuma_enabled) {
-      fetchUptime();
-    } else {
-      setUptimeMonitors([]);
-    }
-
-    if (config.tautulli_enabled) {
-      fetchTautulli();
-    } else {
-      setTautulliData(null);
-    }
-
+    const initialTimer = setTimeout(refreshOptional, 0);
     const interval = setInterval(() => {
-      if (config.speedtest_enabled) fetchSpeedtest();
-      if (config.uptime_kuma_enabled) fetchUptime();
-      if (config.tautulli_enabled) fetchTautulli();
+      refreshOptional();
     }, 15000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
   }, [config, fetchSpeedtest, fetchUptime, fetchTautulli]);
 
   return {

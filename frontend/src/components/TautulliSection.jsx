@@ -76,6 +76,16 @@ function RecentRow({ item }) {
 }
 
 export default function TautulliSection({ data }) {
+  const chartData = useMemo(() => {
+    if (!data?.plays_by_date?.dates) return [];
+    const { dates, series } = data.plays_by_date;
+    return dates.map((d, i) => ({
+      date: d,
+      tv: series.tv?.[i] || 0,
+      movies: series.movies?.[i] || 0,
+    }));
+  }, [data]);
+
   if (!data) {
     return (
       <div className="chart-card py-4 flex items-center gap-3 text-slate-400 text-sm">
@@ -112,19 +122,7 @@ export default function TautulliSection({ data }) {
 
   const streams = data.stream_count || 0;
   const sessions = data.sessions || [];
-  const libraries = data.libraries || [];
   const recent = data.recent || [];
-
-  // Plays by date chart data
-  const chartData = useMemo(() => {
-    if (!data.plays_by_date?.dates) return [];
-    const { dates, series } = data.plays_by_date;
-    return dates.map((d, i) => ({
-      date: d,
-      tv: series.tv?.[i] || 0,
-      movies: series.movies?.[i] || 0,
-    }));
-  }, [data.plays_by_date]);
 
   return (
     <div className="space-y-4">

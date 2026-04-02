@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 export function useNotifications(status, outages) {
-  const permissionRef = useRef(Notification.permission);
+  const notificationsAvailable = typeof window !== 'undefined' && 'Notification' in window;
+  const permissionRef = useRef(notificationsAvailable ? Notification.permission : 'denied');
   const prevStateRef = useRef(null);
   const prevOutageCountRef = useRef(null);
   const prevCurrentOutageRef = useRef(null);
@@ -9,19 +10,20 @@ export function useNotifications(status, outages) {
 
   // Request permission once on mount
   useEffect(() => {
+    if (!notificationsAvailable) return;
     if (Notification.permission === 'default') {
       Notification.requestPermission().then((p) => {
         permissionRef.current = p;
       });
     }
-  }, []);
+  }, [notificationsAvailable]);
 
-  function notify(title, body, icon) {
-    if (permissionRef.current !== 'granted') return;
+  const notify = useCallback((title, body) => {
+    if (!notificationsAvailable || permissionRef.current !== 'granted') return;
     try {
       new Notification(title, { body, icon: '/favicon.ico', tag: title });
     } catch { /* ignore */ }
-  }
+  }, [notificationsAvailable]);
 
   // Watch for state changes
   useEffect(() => {
@@ -42,7 +44,7 @@ export function useNotifications(status, outages) {
       notify('Thermal Throttle', 'Starlink dish is thermal throttling', null);
     }
     prevThermalRef.current = thermal ?? null;
-  }, [status]);
+  }, [notify, status]);
 
   // Watch for new outages
   useEffect(() => {
@@ -59,5 +61,5 @@ export function useNotifications(status, outages) {
       notify('Outage Resolved', 'Connectivity has been restored', null);
     }
     prevCurrentOutageRef.current = current;
-  }, [outages]);
+  }, [notify, outages]);
 }

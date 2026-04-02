@@ -23,6 +23,7 @@ Current maturity:
 ## Security Risks
 
 - optional integrations rely on operator-managed secrets
+- older git history still appears to contain internal-only references that should be scrubbed before a public release
 - the app currently assumes trusted-network deployment unless additional access controls are added externally
 - historical git state has not been exhaustively audited outside currently visible repository contents
 
@@ -57,6 +58,7 @@ Current maturity:
 - [ ] complete automated test coverage for key backend paths
 - [ ] run dependency/vulnerability scans
 - [ ] verify no secrets exist in current repo contents or retained deployment examples
+- [ ] decide whether to rewrite git history to remove past internal-only references before public launch
 - [ ] confirm container image health in a clean environment
 - [ ] validate screenshots and docs against the current UI
 
@@ -72,4 +74,3 @@ Current maturity:
 - add backend tests and CI security scanning
 - add richer accessibility and responsive QA
 - add formal release notes per version
-

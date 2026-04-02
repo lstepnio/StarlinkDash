@@ -48,7 +48,7 @@ function StatChip({ icon: Icon, label, value, unit, color = 'text-slate-300', su
   );
 }
 
-function WanCard({ label, iface, up, adminUp, ip, inBps, outBps, errors, discards, speedMbps, lastChangeS, isActive, isFailover }) {
+function WanCard({ label, up, adminUp, ip, inBps, outBps, errors, discards, speedMbps, lastChangeS, isActive, isFailover }) {
   const { value: inVal, unit: inUnit } = formatBps(inBps);
   const { value: outVal, unit: outUnit } = formatBps(outBps);
   const statusText = adminUp === false ? 'Admin Down' : up ? 'Link Up' : 'Link Down';
@@ -111,11 +111,11 @@ function WanCard({ label, iface, up, adminUp, ip, inBps, outBps, errors, discard
       </div>
 
       {/* Errors */}
-      {(errors > 0 || discards > 0) && (
+      {((errors || 0) > 0 || (discards || 0) > 0) && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-amber-400">
           <AlertTriangle size={10} />
-          {errors > 0 && <span>{errors} errors</span>}
-          {discards > 0 && <span>{discards} discards</span>}
+          {(errors || 0) > 0 && <span>{errors} errors</span>}
+          {(discards || 0) > 0 && <span>{discards} discards</span>}
         </div>
       )}
     </div>
@@ -157,7 +157,7 @@ export default function RouterCards({ routerStatus }) {
           <div>
             <span className="text-sm font-semibold text-amber-300">Failover Active</span>
             <span className="text-xs text-amber-400/60 ml-3">
-              Traffic routing via {r.wan2_iface ?? 'eth2'} (Starlink) — primary WAN {r.wan1_iface ?? 'eth1'} is down
+              Traffic routing via {r.wan2_iface ?? 'eth2'} (failover) because primary uplink {r.wan1_iface ?? 'eth1'} is down
             </span>
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function RouterCards({ routerStatus }) {
         <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
           <CheckCircle size={14} className="text-emerald-500/70 shrink-0" />
           <span className="text-xs text-emerald-500/70 font-medium">
-            Primary WAN active · {r.wan1_iface ?? 'eth1'} (ForceBB)
+            Primary WAN active · {r.wan1_iface ?? 'eth1'}
             {r.wan1_ip && <span className="text-emerald-500/50 font-mono ml-2">{r.wan1_ip}</span>}
           </span>
         </div>
@@ -174,8 +174,7 @@ export default function RouterCards({ routerStatus }) {
       {/* WAN cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <WanCard
-          label={`WAN1 · ${r.wan1_iface ?? 'eth1'} · ForceBB (Primary)`}
-          iface={r.wan1_iface}
+          label={`WAN1 · ${r.wan1_iface ?? 'eth1'} · Primary`}
           up={r.wan1_up}
           adminUp={r.wan1_admin_up}
           ip={r.wan1_ip}
@@ -189,8 +188,7 @@ export default function RouterCards({ routerStatus }) {
           isFailover={false}
         />
         <WanCard
-          label={`WAN2 · ${r.wan2_iface ?? 'eth2'} · Starlink (Failover)`}
-          iface={r.wan2_iface}
+          label={`WAN2 · ${r.wan2_iface ?? 'eth2'} · Failover`}
           up={r.wan2_up}
           adminUp={r.wan2_admin_up}
           ip={r.wan2_ip}

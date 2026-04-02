@@ -4,6 +4,7 @@ frontend/dist
 backend/venv
 backend/__pycache__
 .claude
+.venv-ci
 .DS_Store
 .vite
 coverage

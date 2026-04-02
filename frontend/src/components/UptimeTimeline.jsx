@@ -16,9 +16,23 @@ const COLOR = {
 };
 
 export default function UptimeTimeline({ history, outages }) {
-  const now = Date.now();
+  const now = useMemo(() => {
+    const timestamps = [];
+    if (history?.length) {
+      timestamps.push(...history.map((row) => row.ts * 1000));
+    }
+    if (outages?.outages?.length) {
+      timestamps.push(...outages.outages.flatMap((outage) => {
+        const values = [outage.start_ts * 1000];
+        if (outage.end_ts) values.push(outage.end_ts * 1000);
+        return values;
+      }));
+    }
+    return timestamps.length ? Math.max(...timestamps) : null;
+  }, [history, outages]);
 
   const slots = useMemo(() => {
+    if (now == null) return Array(SLOTS).fill('unknown');
     const arr = Array(SLOTS).fill('unknown');
 
     if (history?.length) {

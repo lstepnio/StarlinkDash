@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import {
-  ComposedChart, Area, Line, Bar, XAxis, YAxis,
+  ComposedChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine
 } from 'recharts';
 import { Zap, ArrowDown, ArrowUp, Clock, Wifi, Server } from 'lucide-react';
@@ -65,11 +65,6 @@ export default function SpeedtestSection({ latest, history }) {
   const downMax = stats ? Math.ceil(stats.maxDown / 50) * 50 || 100 : 100;
   const pingMax = stats ? Math.ceil(stats.maxPing / 10) * 10 || 50 : 50;
 
-  // Subtitle
-  const subtitle = latest?.isp
-    ? `${latest.isp} · ${latest.server_name ?? ''}${latest.server_location ? ` · ${latest.server_location}` : ''}`
-    : undefined;
-
   return (
     <div className="space-y-4">
       {/* Latest result cards */}
@@ -81,6 +76,7 @@ export default function SpeedtestSection({ latest, history }) {
             </div>
             <div className="flex items-center gap-2 text-[10px] text-slate-400">
               {latest.isp && <span className="flex items-center gap-1"><Server size={10}/>{latest.isp}</span>}
+              {latest.server_location && <span>{latest.server_location}</span>}
               {latest.result_url && (
                 <a href={latest.result_url} target="_blank" rel="noopener noreferrer"
                    className="text-blue-500/60 hover:text-blue-400 transition-colors">

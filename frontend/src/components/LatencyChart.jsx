@@ -12,7 +12,7 @@ export default function LatencyChart({ history, bulkHistory, timeRange }) {
     if (timeRange <= 0.25 && bulkHistory?.pop_ping_latency_ms?.length) {
       const latency = bulkHistory.pop_ping_latency_ms;
       const dropRate = bulkHistory.pop_ping_drop_rate || [];
-      const now = Date.now();
+      const now = bulkHistory.sampled_at_ms ?? 0;
       const len = latency.length;
       const points = [];
       for (let i = 0; i < len; i++) {

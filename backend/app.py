@@ -70,7 +70,7 @@ POLL_INTERVAL = _env_int("STARLINK_POLL_INTERVAL", 10, min_value=5, max_value=30
 OUTAGE_THRESHOLD = 15  # seconds before declaring an outage
 
 # Router (ERLite3) SNMP settings
-ROUTER_TARGET = os.environ.get("ROUTER_TARGET", "192.168.10.1")
+ROUTER_TARGET = os.environ.get("ROUTER_TARGET", "")
 ROUTER_COMMUNITY = os.environ.get("ROUTER_COMMUNITY", "")
 ROUTER_LAN_IFACE = os.environ.get("ROUTER_LAN_IFACE", "eth0")
 ROUTER_WAN_IFACE = os.environ.get("ROUTER_WAN_IFACE", "eth1")
@@ -802,7 +802,7 @@ def fetch_router_status() -> dict[str, Any]:
         "cpu_pct": cpu_pct,
         "mem_used_mb": mem_used_mb,
         "mem_total_mb": mem_total_mb,
-        # WAN1 (Primary / ForceBB)
+        # WAN1 (primary uplink)
         "wan1_in_bps":  wan1_in,
         "wan1_out_bps": wan1_out,
         "wan1_up":   wan1_up,
@@ -813,7 +813,7 @@ def fetch_router_status() -> dict[str, Any]:
         "wan1_discards": _discards(wan1_idx),
         "wan1_speed_mbps": _speed_mbps(wan1_idx),
         "wan1_last_change_s": _last_change_age_s(wan1_idx),
-        # WAN2 (Secondary / Starlink failover)
+        # WAN2 (secondary / failover uplink)
         "wan2_in_bps":  wan2_in,
         "wan2_out_bps": wan2_out,
         "wan2_up":   wan2_up,
@@ -1731,7 +1731,7 @@ async def get_config():
         "retention_router_days": RETENTION_ROUTER_DAYS,
         "retention_speedtest_days": RETENTION_SPEEDTEST_DAYS,
         "speedtest_enabled": bool(SPEEDTEST_URL and SPEEDTEST_API_TOKEN),
-        "router_enabled": bool(ROUTER_TARGET),
+        "router_enabled": bool(ROUTER_TARGET and ROUTER_COMMUNITY),
         "uptime_kuma_enabled": bool(UPTIME_KUMA_URL and UPTIME_KUMA_API_KEY),
         "tautulli_enabled": bool(TAUTULLI_URL and TAUTULLI_API_KEY),
     }

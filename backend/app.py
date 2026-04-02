@@ -531,6 +531,23 @@ def _snmp_run(coro):
 
 
 async def _async_snmp_get(oids: list[tuple]) -> dict | None:
+    async def _read_single(dispatcher, transport, oid: tuple):
+        errorIndication, errorStatus, _, varBinds = await get_cmd(
+            dispatcher,
+            CommunityData(ROUTER_COMMUNITY, mpModel=0),
+            transport,
+            oid,
+        )
+        if errorIndication:
+            raise RuntimeError(str(errorIndication))
+        if errorStatus or not varBinds:
+            return None
+        name, val = varBinds[0]
+        try:
+            return str(name), int(val)
+        except (ValueError, TypeError):
+            return str(name), None
+
     dispatcher = SnmpDispatcher()
     try:
         transport = await UdpTransportTarget.create(
@@ -542,9 +559,25 @@ async def _async_snmp_get(oids: list[tuple]) -> dict | None:
             transport,
             *oids,
         )
-        if errorIndication or errorStatus:
-            print(f"[SNMP] get error: {errorIndication or errorStatus}")
+        if errorIndication:
+            print(f"[SNMP] get error: {errorIndication}")
             return None
+        if errorStatus:
+            # SNMPv1 returns noSuchName for the whole GET if any requested OID is unsupported.
+            # Fall back to one-by-one GETs so older agents can still return partial data.
+            print(f"[SNMP] batched get fallback after error: {errorStatus}")
+            out = {}
+            for oid in oids:
+                try:
+                    item = await _read_single(dispatcher, transport, oid)
+                except Exception as e:
+                    print(f"[SNMP] single get exception for {oid[0]}: {e}")
+                    continue
+                if item is None:
+                    continue
+                name, value = item
+                out[name] = value
+            return out or None
         out = {}
         for name, val in varBinds:
             try:

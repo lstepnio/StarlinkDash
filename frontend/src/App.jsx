@@ -6,7 +6,6 @@ import LatencyChart from './components/LatencyChart';
 import ObstructionMap from './components/ObstructionMap';
 import SignalChart from './components/SignalChart';
 import PowerChart from './components/PowerChart';
-import SpeedQualityScore from './components/SpeedQualityScore';
 import AlertsPanel from './components/AlertsPanel';
 import UptimeTimeline from './components/UptimeTimeline';
 import OutageLog from './components/OutageLog';
@@ -188,17 +187,6 @@ function App() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <ThroughputChart history={history} bulkHistory={bulkHistory} timeRange={timeRange} />
             <LatencyChart history={history} bulkHistory={bulkHistory} timeRange={timeRange} />
-          </div>
-        </SectionBlock>
-
-        {/* Quality */}
-        <SectionBlock
-          eyebrow="Quality"
-          title="Quality score"
-          description="A compressed service-quality summary derived from latency, loss, throughput, and obstruction."
-        >
-          <div className="grid grid-cols-1 items-start gap-4">
-            <SpeedQualityScore status={status} history={history} />
           </div>
         </SectionBlock>
 

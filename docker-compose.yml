@@ -16,6 +16,8 @@ services:
       - SPEEDTEST_API_TOKEN=${SPEEDTEST_API_TOKEN:-}
       - UPTIME_KUMA_URL=${UPTIME_KUMA_URL:-}
       - UPTIME_KUMA_API_KEY=${UPTIME_KUMA_API_KEY:-}
+      - TAUTULLI_URL=${TAUTULLI_URL:-}
+      - TAUTULLI_API_KEY=${TAUTULLI_API_KEY:-}
     volumes:
       - starlinkdash-data:/data
     restart: unless-stopped

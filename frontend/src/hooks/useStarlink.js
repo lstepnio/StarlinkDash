@@ -12,6 +12,7 @@ export function useStarlink() {
   const [speedtestLatest, setSpeedtestLatest] = useState(null);
   const [speedtestHistory, setSpeedtestHistory] = useState([]);
   const [uptimeMonitors, setUptimeMonitors] = useState([]);
+  const [tautulliData, setTautulliData] = useState(null);
   const [failoverData, setFailoverData] = useState(null);
   const [connected, setConnected] = useState(false);
   const [timeRange, setTimeRange] = useState(1); // hours
@@ -114,6 +115,15 @@ export function useStarlink() {
     } catch { /* ignore */ }
   }, []);
 
+  // Fetch Tautulli (Plex) data
+  const fetchTautulli = useCallback(async () => {
+    try {
+      const res = await fetch('/api/tautulli');
+      const data = await res.json();
+      if (data && Object.keys(data).length) setTautulliData(data);
+    } catch { /* ignore */ }
+  }, []);
+
   // Fetch Uptime Kuma monitor statuses
   const fetchUptime = useCallback(async () => {
     try {
@@ -148,6 +158,7 @@ export function useStarlink() {
     fetchFailover();
     fetchSpeedtest();
     fetchUptime();
+    fetchTautulli();
     const interval = setInterval(() => {
       fetchHistory();
       fetchBulk();
@@ -158,16 +169,17 @@ export function useStarlink() {
       fetchFailover();
       fetchSpeedtest();
       fetchUptime();
+      fetchTautulli();
     }, 15000);
     return () => clearInterval(interval);
-  }, [fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchFailover, fetchSpeedtest, fetchUptime]);
+  }, [fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchFailover, fetchSpeedtest, fetchUptime, fetchTautulli]);
 
   return {
     status, history, bulkHistory, obstruction,
     alerts, outages,
     routerStatus, routerHistory, failoverData,
     speedtestLatest, speedtestHistory,
-    uptimeMonitors,
+    uptimeMonitors, tautulliData,
     connected, timeRange, setTimeRange,
   };
 }

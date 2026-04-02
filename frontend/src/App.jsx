@@ -15,6 +15,7 @@ import RouterChart from './components/RouterChart';
 import SpeedtestSection from './components/SpeedtestSection';
 import UptimeKumaPanel from './components/UptimeKumaPanel';
 import FailoverLog from './components/FailoverLog';
+import TautulliSection from './components/TautulliSection';
 import ConnectionIndicator from './components/ConnectionIndicator';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import { Network } from 'lucide-react';
@@ -33,7 +34,7 @@ function App() {
     alerts, outages,
     routerStatus, routerHistory, failoverData,
     speedtestLatest, speedtestHistory,
-    uptimeMonitors,
+    uptimeMonitors, tautulliData,
     connected, timeRange, setTimeRange,
   } = useStarlink();
 
@@ -82,7 +83,13 @@ function App() {
           <UptimeKumaPanel monitors={uptimeMonitors} />
         </div>
 
-        {/* ── 3. Speedtest ── */}
+        {/* ── 3. Plex / Tautulli ── */}
+        <div>
+          <SectionLabel>Plex Media Server</SectionLabel>
+          <TautulliSection data={tautulliData} />
+        </div>
+
+        {/* ── 4. Speedtest ── */}
         <div>
           <SectionLabel>Speedtest History</SectionLabel>
           <SpeedtestSection latest={speedtestLatest} history={speedtestHistory} />

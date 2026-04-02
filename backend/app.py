@@ -39,6 +39,11 @@ UPTIME_KUMA_URL = os.environ.get("UPTIME_KUMA_URL", "").rstrip("/")
 UPTIME_KUMA_API_KEY = os.environ.get("UPTIME_KUMA_API_KEY", "")
 UPTIME_KUMA_POLL_INTERVAL = int(os.environ.get("UPTIME_KUMA_POLL_INTERVAL", "60"))
 
+# Tautulli (Plex monitoring) integration
+TAUTULLI_URL = os.environ.get("TAUTULLI_URL", "").rstrip("/")
+TAUTULLI_API_KEY = os.environ.get("TAUTULLI_API_KEY", "")
+TAUTULLI_POLL_INTERVAL = int(os.environ.get("TAUTULLI_POLL_INTERVAL", "30"))
+
 # Data retention
 RETENTION_STARLINK_DAYS = int(os.environ.get("RETENTION_STARLINK_DAYS", "30"))
 RETENTION_ROUTER_DAYS   = int(os.environ.get("RETENTION_ROUTER_DAYS",   "30"))
@@ -47,6 +52,7 @@ RETENTION_SPEEDTEST_DAYS = int(os.environ.get("RETENTION_SPEEDTEST_DAYS", "365")
 latest_status: dict[str, Any] = {}
 latest_router: dict[str, Any] = {}
 latest_uptime_monitors: list[dict] = []
+latest_tautulli: dict[str, Any] = {}
 connected_clients: set[WebSocket] = set()
 
 # Failover state tracking
@@ -1171,6 +1177,115 @@ def _uptime_kuma_poll_thread():
         time.sleep(max(0, UPTIME_KUMA_POLL_INTERVAL - (time.time() - t0)))
 
 
+# ---------------------------------------------------------------------------
+# Tautulli (Plex monitoring) integration
+# ---------------------------------------------------------------------------
+
+def _tautulli_api(cmd: str, **params) -> dict | None:
+    if not TAUTULLI_URL or not TAUTULLI_API_KEY:
+        return None
+    qs = "&".join(f"{k}={v}" for k, v in params.items())
+    url = f"{TAUTULLI_URL}/api/v2?apikey={TAUTULLI_API_KEY}&cmd={cmd}"
+    if qs:
+        url += f"&{qs}"
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read())
+            return data.get("response", {}).get("data")
+    except Exception as e:
+        print(f"[Tautulli] API error ({cmd}): {e}")
+        return None
+
+
+def fetch_tautulli_status() -> dict:
+    """Aggregate Tautulli data into a single status dict."""
+    result: dict[str, Any] = {}
+
+    # Active streams
+    activity = _tautulli_api("get_activity")
+    if activity:
+        sessions = activity.get("sessions", [])
+        result["stream_count"] = int(activity.get("stream_count", 0))
+        result["total_bandwidth_mbps"] = round(int(activity.get("total_bandwidth", 0)) / 1000, 1)
+        result["lan_bandwidth_mbps"] = round(int(activity.get("lan_bandwidth", 0)) / 1000, 1)
+        result["wan_bandwidth_mbps"] = round(int(activity.get("wan_bandwidth", 0)) / 1000, 1)
+        result["transcode_count"] = int(activity.get("stream_count_transcode", 0))
+        result["direct_play_count"] = int(activity.get("stream_count_direct_play", 0))
+        result["sessions"] = [
+            {
+                "user": s.get("friendly_name") or s.get("user", ""),
+                "title": s.get("full_title") or s.get("title", ""),
+                "media_type": s.get("media_type", ""),
+                "state": s.get("state", ""),
+                "progress_pct": int(s.get("progress_percent", 0)),
+                "transcode_decision": s.get("transcode_decision", ""),
+                "platform": s.get("platform", ""),
+                "player": s.get("player", ""),
+                "quality": s.get("quality_profile", ""),
+                "bandwidth_mbps": round(int(s.get("bandwidth", 0)) / 1000, 1),
+                "location": s.get("location", ""),
+            }
+            for s in sessions
+        ]
+
+    # Libraries
+    libs = _tautulli_api("get_libraries")
+    if libs:
+        result["libraries"] = [
+            {
+                "name": l.get("section_name", ""),
+                "type": l.get("section_type", ""),
+                "count": int(l.get("count", 0)),
+                "child_count": int(l.get("child_count", 0)) if l.get("child_count") else None,
+            }
+            for l in libs
+        ]
+
+    # Recent history (last 5)
+    hist = _tautulli_api("get_history", length="5")
+    if hist and hist.get("data"):
+        result["recent"] = [
+            {
+                "title": h.get("full_title") or h.get("title", ""),
+                "media_type": h.get("media_type", ""),
+                "user": h.get("friendly_name", ""),
+                "platform": h.get("platform", ""),
+                "player": h.get("player", ""),
+                "date": h.get("date"),
+                "duration_s": h.get("duration"),
+                "transcode_decision": h.get("transcode_decision", ""),
+                "watched_status": h.get("watched_status"),
+                "percent_complete": h.get("percent_complete"),
+            }
+            for h in hist["data"]
+        ]
+
+    # Plays by date (last 30 days)
+    plays = _tautulli_api("get_plays_by_date", time_range="30")
+    if plays:
+        result["plays_by_date"] = {
+            "dates": plays.get("categories", []),
+            "series": {
+                s["name"].lower(): s["data"]
+                for s in plays.get("series", [])
+            },
+        }
+
+    return result
+
+
+def _tautulli_poll_thread():
+    global latest_tautulli
+    while True:
+        t0 = time.time()
+        try:
+            latest_tautulli = fetch_tautulli_status()
+        except Exception as e:
+            print(f"[Tautulli] Poll error: {e}")
+        time.sleep(max(0, TAUTULLI_POLL_INTERVAL - (time.time() - t0)))
+
+
 def _speedtest_poll_thread():
     print(f"[Speedtest] Thread started (URL={SPEEDTEST_URL})")
     # Backfill on first run if DB is empty
@@ -1245,6 +1360,7 @@ async def lifespan(app: FastAPI):
     threading.Thread(target=_router_poll_thread, daemon=True).start()
     threading.Thread(target=_speedtest_poll_thread, daemon=True).start()
     threading.Thread(target=_uptime_kuma_poll_thread, daemon=True).start()
+    threading.Thread(target=_tautulli_poll_thread, daemon=True).start()
     broadcast_task = asyncio.create_task(_broadcast_loop())
     yield
     broadcast_task.cancel()
@@ -1353,6 +1469,11 @@ async def get_uptime():
     return {"monitors": latest_uptime_monitors}
 
 
+@app.get("/api/tautulli")
+async def get_tautulli():
+    return latest_tautulli or {}
+
+
 @app.get("/api/config")
 async def get_config():
     """Expose non-secret runtime configuration for the UI."""
@@ -1366,6 +1487,7 @@ async def get_config():
         "speedtest_enabled": bool(SPEEDTEST_URL and SPEEDTEST_API_TOKEN),
         "router_enabled": bool(ROUTER_TARGET),
         "uptime_kuma_enabled": bool(UPTIME_KUMA_URL and UPTIME_KUMA_API_KEY),
+        "tautulli_enabled": bool(TAUTULLI_URL and TAUTULLI_API_KEY),
     }
 
 

@@ -28,7 +28,7 @@ function SectionBlock({ eyebrow, title, description, children, action }) {
           <div className="section-eyebrow">{eyebrow}</div>
           <div className="space-y-1">
             <h2 className="text-lg font-semibold tracking-tight text-slate-100">{title}</h2>
-            {description && <p className="max-w-3xl text-sm text-slate-400">{description}</p>}
+            {description && <p className="max-w-3xl text-[13px] leading-relaxed text-slate-400">{description}</p>}
           </div>
         </div>
         {action && <div className="shrink-0">{action}</div>}
@@ -197,7 +197,7 @@ function App() {
           title="Quality score and alerts"
           description="A compressed service-quality summary alongside raw alert state and recent alert transitions."
         >
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-4">
             <SpeedQualityScore status={status} history={history} />
             <AlertsPanel alerts={alerts} />
           </div>

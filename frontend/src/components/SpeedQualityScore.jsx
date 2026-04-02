@@ -135,8 +135,6 @@ function GaugeArc({ score }) {
 
 export default function SpeedQualityScore({ status, history }) {
   const score = useMemo(() => computeScore(status, history), [status, history]);
-  const { label, color } = scoreLabel(score);
-
   const h = status?.header || {};
   const breakdown = [
     { label: 'Latency', value: h.pop_ping_latency_ms != null ? `${h.pop_ping_latency_ms.toFixed(1)} ms` : '--' },
@@ -146,18 +144,22 @@ export default function SpeedQualityScore({ status, history }) {
   ];
 
   return (
-    <ChartCard title="Speed Quality Score">
-      <div className="flex flex-col items-center gap-2">
-        <GaugeArc score={score} />
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-1 w-full max-w-[220px]">
+    <ChartCard
+      title="Speed Quality Score"
+      subtitle="Composite score from latency, loss, download throughput, and obstruction."
+    >
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[220px,1fr] lg:items-center">
+        <div className="flex justify-center">
+          <GaugeArc score={score} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           {breakdown.map((b) => (
-            <div key={b.label} className="flex justify-between text-xs">
-              <span className="text-slate-500">{b.label}</span>
-              <span className="text-slate-300 font-medium tabular-nums">{b.value}</span>
+            <div key={b.label} className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-3 py-3">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{b.label}</div>
+              <div className="mt-1 text-sm font-semibold tabular-nums text-slate-200">{b.value}</div>
             </div>
           ))}
         </div>
-        <div className="text-[10px] text-slate-400 mt-1">Composite score: latency + loss + throughput + obstruction</div>
       </div>
     </ChartCard>
   );

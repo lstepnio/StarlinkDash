@@ -23,9 +23,14 @@ function humanizeCause(cause) {
 export default function OutageLog({ outages }) {
   const list = outages?.outages || [];
   const current = outages?.current;
+  const isQuiet = !current && list.length === 0;
 
   return (
-    <ChartCard title="Outage Log (24h)">
+    <ChartCard
+      title="Outage Log (24h)"
+      subtitle={isQuiet ? 'No disconnect windows recorded in the last 24 hours.' : 'Recent outage windows with duration and reported dish state.'}
+      className={isQuiet ? 'py-5' : ''}
+    >
       {current && (
         <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-300 text-xs px-3 py-2 rounded-lg mb-3 animate-pulse">
           <WifiOff size={13} />
@@ -34,7 +39,7 @@ export default function OutageLog({ outages }) {
       )}
 
       {list.length === 0 ? (
-        <div className="flex items-center gap-2 text-emerald-400 text-sm">
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] px-3 py-3 text-emerald-400 text-sm">
           <CheckCircle size={15} />
           <span>No outages in the last 24 hours</span>
         </div>

@@ -33,9 +33,14 @@ export default function AlertsPanel({ alerts }) {
   const [expanded, setExpanded] = useState(false);
   const active = Object.entries(alerts?.active || {}).filter(([, v]) => v === true);
   const events = alerts?.events || [];
+  const isQuiet = active.length === 0 && events.length === 0;
 
   return (
-    <ChartCard title="Alerts">
+    <ChartCard
+      title="Alerts"
+      subtitle={isQuiet ? 'Nothing active or recently cleared in the last 24 hours.' : 'Current Starlink alerts and recent alert transitions.'}
+      className={isQuiet ? 'py-5' : ''}
+    >
       {/* Active alerts */}
       {active.length > 0 ? (
         <div className="flex flex-wrap gap-2 mb-3">
@@ -99,7 +104,9 @@ export default function AlertsPanel({ alerts }) {
       )}
 
       {events.length === 0 && active.length === 0 && (
-        <div className="text-xs text-slate-400 mt-1">No alert history in the last 24 hours</div>
+        <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] px-3 py-3 text-xs text-slate-400">
+          Alert history is clear for the selected 24-hour window.
+        </div>
       )}
     </ChartCard>
   );

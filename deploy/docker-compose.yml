@@ -5,6 +5,7 @@ networks:
 services:
   starlinkdash:
     image: ghcr.io/lstepnio/starlinkdash:latest
+    pull_policy: always
     container_name: starlinkdash
     restart: unless-stopped
     networks:

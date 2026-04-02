@@ -23,7 +23,7 @@ OUTAGE_THRESHOLD = 15  # seconds before declaring an outage
 
 # Router (ERLite3) SNMP settings
 ROUTER_TARGET = os.environ.get("ROUTER_TARGET", "192.168.10.1")
-ROUTER_COMMUNITY = os.environ.get("ROUTER_COMMUNITY", "root123")
+ROUTER_COMMUNITY = os.environ.get("ROUTER_COMMUNITY", "")
 ROUTER_LAN_IFACE = os.environ.get("ROUTER_LAN_IFACE", "eth0")
 ROUTER_WAN_IFACE = os.environ.get("ROUTER_WAN_IFACE", "eth1")
 ROUTER_WAN2_IFACE = os.environ.get("ROUTER_WAN2_IFACE", "eth2")
@@ -44,6 +44,11 @@ TAUTULLI_URL = os.environ.get("TAUTULLI_URL", "").rstrip("/")
 TAUTULLI_API_KEY = os.environ.get("TAUTULLI_API_KEY", "")
 TAUTULLI_POLL_INTERVAL = int(os.environ.get("TAUTULLI_POLL_INTERVAL", "30"))
 
+# Host metrics via mounted /proc and /sys
+HOST_PROC = os.environ.get("HOST_PROC", "/proc")
+HOST_SYS  = os.environ.get("HOST_SYS",  "/sys")
+HOST_POLL_INTERVAL = int(os.environ.get("HOST_POLL_INTERVAL", "10"))
+
 # Data retention
 RETENTION_STARLINK_DAYS = int(os.environ.get("RETENTION_STARLINK_DAYS", "30"))
 RETENTION_ROUTER_DAYS   = int(os.environ.get("RETENTION_ROUTER_DAYS",   "30"))
@@ -53,6 +58,10 @@ latest_status: dict[str, Any] = {}
 latest_router: dict[str, Any] = {}
 latest_uptime_monitors: list[dict] = []
 latest_tautulli: dict[str, Any] = {}
+latest_tautulli_error: str | None = None
+latest_host: dict[str, Any] = {}
+_prev_cpu: dict | None = None
+_prev_net: dict | None = None
 connected_clients: set[WebSocket] = set()
 
 # Failover state tracking
@@ -1178,11 +1187,199 @@ def _uptime_kuma_poll_thread():
 
 
 # ---------------------------------------------------------------------------
+# Host metrics — read from mounted /proc and /sys
+# ---------------------------------------------------------------------------
+
+def _read_proc(path: str) -> str:
+    """Read a file from the (possibly host-mounted) /proc."""
+    full = os.path.join(HOST_PROC, path)
+    try:
+        with open(full) as f:
+            return f.read()
+    except Exception:
+        return ""
+
+
+def _parse_cpu_times() -> dict:
+    """Parse /proc/stat first line → dict of total and idle jiffies."""
+    line = _read_proc("stat").split("\n")[0]  # "cpu  user nice system idle ..."
+    parts = line.split()
+    if len(parts) < 5:
+        return {}
+    vals = [int(x) for x in parts[1:]]
+    total = sum(vals)
+    idle = vals[3] + (vals[4] if len(vals) > 4 else 0)  # idle + iowait
+    return {"total": total, "idle": idle, "ts": time.time()}
+
+
+def _parse_meminfo() -> dict:
+    """Parse /proc/meminfo → total, available, used (in MB)."""
+    info = {}
+    for line in _read_proc("meminfo").split("\n"):
+        if ":" in line:
+            key, val = line.split(":", 1)
+            info[key.strip()] = int(val.strip().split()[0])  # value in kB
+    total = info.get("MemTotal", 0) / 1024
+    avail = info.get("MemAvailable", info.get("MemFree", 0)) / 1024
+    swap_total = info.get("SwapTotal", 0) / 1024
+    swap_free = info.get("SwapFree", 0) / 1024
+    return {
+        "total_mb": round(total, 1),
+        "available_mb": round(avail, 1),
+        "used_mb": round(total - avail, 1),
+        "used_pct": round((total - avail) / total * 100, 1) if total else 0,
+        "swap_total_mb": round(swap_total, 1),
+        "swap_used_mb": round(swap_total - swap_free, 1),
+    }
+
+
+def _parse_loadavg() -> dict:
+    parts = _read_proc("loadavg").split()
+    if len(parts) < 3:
+        return {}
+    return {
+        "load_1m": float(parts[0]),
+        "load_5m": float(parts[1]),
+        "load_15m": float(parts[2]),
+    }
+
+
+def _parse_uptime() -> dict:
+    parts = _read_proc("uptime").split()
+    if not parts:
+        return {}
+    return {"uptime_s": float(parts[0])}
+
+
+def _parse_net_dev() -> dict:
+    """Parse /proc/net/dev → {iface: {rx_bytes, tx_bytes, ts}}."""
+    result = {}
+    for line in _read_proc("net/dev").split("\n")[2:]:
+        line = line.strip()
+        if not line or ":" not in line:
+            continue
+        iface, rest = line.split(":", 1)
+        iface = iface.strip()
+        if iface == "lo":
+            continue
+        vals = rest.split()
+        if len(vals) >= 9:
+            result[iface] = {"rx_bytes": int(vals[0]), "tx_bytes": int(vals[8])}
+    result["_ts"] = time.time()
+    return result
+
+
+def _parse_disk_usage() -> list:
+    """Get disk usage for major mount points from /proc/mounts + statvfs."""
+    mounts = []
+    seen_devs = set()
+    try:
+        mount_path = os.path.join(HOST_PROC, "mounts")
+        with open(mount_path) as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 3:
+                    continue
+                dev, mount, fstype = parts[0], parts[1], parts[2]
+                if fstype not in ("ext4", "xfs", "btrfs", "zfs", "overlay"):
+                    continue
+                if dev in seen_devs:
+                    continue
+                seen_devs.add(dev)
+                try:
+                    st = os.statvfs(mount)
+                    total = st.f_blocks * st.f_frsize
+                    free = st.f_bfree * st.f_frsize
+                    used = total - free
+                    if total > 0:
+                        mounts.append({
+                            "mount": mount,
+                            "device": dev,
+                            "total_gb": round(total / (1024**3), 1),
+                            "used_gb": round(used / (1024**3), 1),
+                            "free_gb": round(free / (1024**3), 1),
+                            "used_pct": round(used / total * 100, 1),
+                        })
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return mounts
+
+
+def fetch_host_metrics() -> dict:
+    """Collect all host metrics into a single dict."""
+    global _prev_cpu, _prev_net
+
+    result: dict[str, Any] = {}
+    result["timestamp"] = time.time()
+
+    # CPU usage (delta since last poll)
+    cpu_now = _parse_cpu_times()
+    if cpu_now and _prev_cpu:
+        d_total = cpu_now["total"] - _prev_cpu["total"]
+        d_idle = cpu_now["idle"] - _prev_cpu["idle"]
+        if d_total > 0:
+            result["cpu_pct"] = round((1 - d_idle / d_total) * 100, 1)
+    _prev_cpu = cpu_now
+
+    # Memory
+    result.update(_parse_meminfo())
+
+    # Load average
+    result.update(_parse_loadavg())
+
+    # Uptime
+    result.update(_parse_uptime())
+
+    # Network throughput (delta since last poll)
+    net_now = _parse_net_dev()
+    if net_now and _prev_net:
+        dt = net_now["_ts"] - _prev_net.get("_ts", net_now["_ts"])
+        if dt > 0:
+            net_rates = {}
+            for iface, counters in net_now.items():
+                if iface == "_ts" or iface not in _prev_net:
+                    continue
+                prev = _prev_net[iface]
+                rx_bps = (counters["rx_bytes"] - prev["rx_bytes"]) * 8 / dt
+                tx_bps = (counters["tx_bytes"] - prev["tx_bytes"]) * 8 / dt
+                net_rates[iface] = {
+                    "rx_mbps": round(rx_bps / 1_000_000, 2),
+                    "tx_mbps": round(tx_bps / 1_000_000, 2),
+                }
+            result["network"] = net_rates
+    _prev_net = net_now
+
+    # Disk usage
+    result["disks"] = _parse_disk_usage()
+
+    return result
+
+
+def _host_poll_thread():
+    global latest_host
+    # Prime the CPU/net delta counters
+    _parse_cpu_times()
+    _parse_net_dev()
+    time.sleep(HOST_POLL_INTERVAL)
+    while True:
+        t0 = time.time()
+        try:
+            latest_host = fetch_host_metrics()
+        except Exception as e:
+            print(f"[Host] Poll error: {e}")
+        time.sleep(max(0, HOST_POLL_INTERVAL - (time.time() - t0)))
+
+
+# ---------------------------------------------------------------------------
 # Tautulli (Plex monitoring) integration
 # ---------------------------------------------------------------------------
 
 def _tautulli_api(cmd: str, **params) -> dict | None:
+    global latest_tautulli_error
     if not TAUTULLI_URL or not TAUTULLI_API_KEY:
+        latest_tautulli_error = "Tautulli is not configured: set TAUTULLI_URL and TAUTULLI_API_KEY."
         return None
     qs = "&".join(f"{k}={v}" for k, v in params.items())
     url = f"{TAUTULLI_URL}/api/v2?apikey={TAUTULLI_API_KEY}&cmd={cmd}"
@@ -1192,19 +1389,34 @@ def _tautulli_api(cmd: str, **params) -> dict | None:
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
             data = json.loads(r.read())
-            return data.get("response", {}).get("data")
+            response = data.get("response", {})
+            if response.get("result") != "success":
+                latest_tautulli_error = response.get("message") or f"Tautulli API command failed: {cmd}"
+                return None
+            latest_tautulli_error = None
+            return response.get("data")
     except Exception as e:
+        latest_tautulli_error = str(e)
         print(f"[Tautulli] API error ({cmd}): {e}")
         return None
 
 
 def fetch_tautulli_status() -> dict:
     """Aggregate Tautulli data into a single status dict."""
-    result: dict[str, Any] = {}
+    result: dict[str, Any] = {
+        "configured": bool(TAUTULLI_URL and TAUTULLI_API_KEY),
+        "connected": False,
+        "error": None,
+    }
+
+    if not result["configured"]:
+        result["error"] = "Missing TAUTULLI_URL or TAUTULLI_API_KEY."
+        return result
 
     # Active streams
     activity = _tautulli_api("get_activity")
     if activity:
+        result["connected"] = True
         sessions = activity.get("sessions", [])
         result["stream_count"] = int(activity.get("stream_count", 0))
         result["total_bandwidth_mbps"] = round(int(activity.get("total_bandwidth", 0)) / 1000, 1)
@@ -1271,6 +1483,9 @@ def fetch_tautulli_status() -> dict:
                 for s in plays.get("series", [])
             },
         }
+
+    if not result["connected"]:
+        result["error"] = latest_tautulli_error or "Unable to fetch data from Tautulli."
 
     return result
 

@@ -29,12 +29,12 @@ function fmtAge(ts) {
 
 function StatCard({ icon: Icon, label, value, sub, color = 'text-slate-200' }) {
   return (
-    <div className="metric-card accent-slate p-4 flex flex-col gap-1">
+    <div className="metric-card p-5 flex min-h-[132px] flex-col justify-between gap-3">
       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
         <Icon size={10} strokeWidth={2.5} /> {label}
       </div>
-      <span className={`text-2xl font-bold tabular-nums leading-none ${color}`}>{value}</span>
-      {sub && <span className="text-[10px] text-slate-500 mt-0.5">{sub}</span>}
+      <span className={`text-4xl font-bold tabular-nums leading-none ${color}`}>{value}</span>
+      {sub && <span className="text-xs text-slate-500 leading-snug">{sub}</span>}
     </div>
   );
 }
@@ -76,10 +76,36 @@ function RecentRow({ item }) {
 }
 
 export default function TautulliSection({ data }) {
-  if (!data || Object.keys(data).length === 0) {
+  if (!data) {
     return (
       <div className="chart-card py-4 flex items-center gap-3 text-slate-400 text-sm">
         <Tv size={15} /> Connecting to Tautulli…
+      </div>
+    );
+  }
+
+  if (data.configured === false) {
+    return (
+      <div className="chart-card py-4 px-4 flex flex-col gap-1 text-sm">
+        <div className="flex items-center gap-3 text-amber-300">
+          <Tv size={15} /> Tautulli not configured
+        </div>
+        <div className="text-slate-400 text-xs">
+          Set <code>TAUTULLI_URL</code> and <code>TAUTULLI_API_KEY</code>, then restart the backend/container.
+        </div>
+      </div>
+    );
+  }
+
+  if (data.connected === false) {
+    return (
+      <div className="chart-card py-4 px-4 flex flex-col gap-1 text-sm">
+        <div className="flex items-center gap-3 text-red-300">
+          <Tv size={15} /> Tautulli connection failed
+        </div>
+        <div className="text-slate-400 text-xs break-all">
+          {data.error || 'Unable to fetch data from Tautulli.'}
+        </div>
       </div>
     );
   }
@@ -88,9 +114,6 @@ export default function TautulliSection({ data }) {
   const sessions = data.sessions || [];
   const libraries = data.libraries || [];
   const recent = data.recent || [];
-
-  const totalItems = libraries.reduce((sum, l) => sum + l.count, 0);
-  const libSummary = libraries.map((l) => `${l.count} ${l.name}`).join(' · ');
 
   // Plays by date chart data
   const chartData = useMemo(() => {
@@ -106,12 +129,9 @@ export default function TautulliSection({ data }) {
   return (
     <div className="space-y-4">
       {/* Status cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <StatCard icon={Play} label="Active Streams" color={streams > 0 ? 'text-emerald-400' : 'text-slate-300'}
           value={streams} sub={streams > 0 ? `${data.total_bandwidth_mbps || 0} Mbps total` : 'No active streams'} />
-        <StatCard icon={Film} label="Library" value={totalItems} sub={libSummary} />
-        <StatCard icon={Users} label="Recent Plays" value={recent.length}
-          sub={recent[0] ? `Last: ${fmtAge(recent[0].date)}` : '—'} />
         <StatCard icon={Wifi} label="Bandwidth" value={`${data.total_bandwidth_mbps || 0}`}
           sub={`LAN: ${data.lan_bandwidth_mbps || 0} · WAN: ${data.wan_bandwidth_mbps || 0} Mbps`}
           color={data.total_bandwidth_mbps > 0 ? 'text-cyan-400' : 'text-slate-300'} />

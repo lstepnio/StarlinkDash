@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 export function useStarlink() {
+  const [config, setConfig] = useState(null);
   const [status, setStatus] = useState(null);
   const [history, setHistory] = useState([]);
   const [bulkHistory, setBulkHistory] = useState(null);
@@ -46,6 +47,14 @@ export function useStarlink() {
       wsRef.current?.close();
     };
   }, [connect]);
+
+  const fetchConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/config');
+      const data = await res.json();
+      setConfig(data);
+    } catch { /* ignore */ }
+  }, []);
 
   // Fetch persisted history from SQLite
   const fetchHistory = useCallback(async () => {
@@ -149,6 +158,7 @@ export function useStarlink() {
 
   // Initial load + polling
   useEffect(() => {
+    fetchConfig();
     fetchHistory();
     fetchBulk();
     fetchObstruction();
@@ -172,9 +182,10 @@ export function useStarlink() {
       fetchTautulli();
     }, 15000);
     return () => clearInterval(interval);
-  }, [fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchFailover, fetchSpeedtest, fetchUptime, fetchTautulli]);
+  }, [fetchConfig, fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchFailover, fetchSpeedtest, fetchUptime, fetchTautulli]);
 
   return {
+    config,
     status, history, bulkHistory, obstruction,
     alerts, outages,
     routerStatus, routerHistory, failoverData,

@@ -30,6 +30,7 @@ function SectionLabel({ children }) {
 
 function App() {
   const {
+    config,
     status, history, bulkHistory, obstruction,
     alerts, outages,
     routerStatus, routerHistory, failoverData,
@@ -78,22 +79,28 @@ function App() {
         </div>
 
         {/* ── 2. Service health (Uptime Kuma) ── */}
-        <div>
-          <SectionLabel>Service Health</SectionLabel>
-          <UptimeKumaPanel monitors={uptimeMonitors} />
-        </div>
+        {config?.uptime_kuma_enabled && (
+          <div>
+            <SectionLabel>Service Health</SectionLabel>
+            <UptimeKumaPanel monitors={uptimeMonitors} />
+          </div>
+        )}
 
         {/* ── 3. Plex / Tautulli ── */}
-        <div>
-          <SectionLabel>Plex Media Server</SectionLabel>
-          <TautulliSection data={tautulliData} />
-        </div>
+        {config?.tautulli_enabled && (
+          <div>
+            <SectionLabel>Plex Media Server</SectionLabel>
+            <TautulliSection data={tautulliData} />
+          </div>
+        )}
 
         {/* ── 4. Speedtest ── */}
-        <div>
-          <SectionLabel>Speedtest History</SectionLabel>
-          <SpeedtestSection latest={speedtestLatest} history={speedtestHistory} />
-        </div>
+        {config?.speedtest_enabled && (
+          <div>
+            <SectionLabel>Speedtest History</SectionLabel>
+            <SpeedtestSection latest={speedtestLatest} history={speedtestHistory} />
+          </div>
+        )}
 
         {/* ── 4. Starlink status metrics ── */}
         <div>

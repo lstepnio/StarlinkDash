@@ -1,4 +1,4 @@
-import { Activity, Globe, Wifi, Server, Shield, Clock, ExternalLink } from 'lucide-react';
+import { Activity, Globe, Wifi, Server, Shield } from 'lucide-react';
 
 const STATUS_MAP = {
   1: { label: 'UP',          color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', dot: 'bg-emerald-400' },
@@ -105,10 +105,6 @@ export default function UptimeKumaPanel({ monitors }) {
             ? `All ${total} services operational`
             : `${downCount} service${downCount > 1 ? 's' : ''} down · ${upCount}/${total} operational`}
         </span>
-        <a href="https://status.majjix.com" target="_blank" rel="noopener noreferrer"
-           className="ml-auto flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-300 transition-colors">
-          <ExternalLink size={9} /> status.majjix.com
-        </a>
       </div>
 
       {/* Monitor grid */}

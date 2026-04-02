@@ -8,7 +8,7 @@ services:
       - STARLINK_TARGET=${STARLINK_TARGET:-192.168.100.1:9200}
       - DB_PATH=/data/starlinkdash.db
       - ROUTER_TARGET=${ROUTER_TARGET:-192.168.10.1}
-      - ROUTER_COMMUNITY=${ROUTER_COMMUNITY:-root123}
+      - ROUTER_COMMUNITY=${ROUTER_COMMUNITY:-}
       - ROUTER_LAN_IFACE=${ROUTER_LAN_IFACE:-eth0}
       - ROUTER_WAN_IFACE=${ROUTER_WAN_IFACE:-eth1}
       - ROUTER_WAN2_IFACE=${ROUTER_WAN2_IFACE:-eth2}
@@ -18,8 +18,12 @@ services:
       - UPTIME_KUMA_API_KEY=${UPTIME_KUMA_API_KEY:-}
       - TAUTULLI_URL=${TAUTULLI_URL:-}
       - TAUTULLI_API_KEY=${TAUTULLI_API_KEY:-}
+      - HOST_PROC=/host/proc
+      - HOST_SYS=/host/sys
     volumes:
       - starlinkdash-data:/data
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
     restart: unless-stopped
 
 volumes:

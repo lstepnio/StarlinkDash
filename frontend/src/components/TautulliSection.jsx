@@ -29,12 +29,12 @@ function fmtAge(ts) {
 
 function StatCard({ icon: Icon, label, value, sub, color = 'text-slate-200' }) {
   return (
-    <div className="metric-card p-5 flex min-h-[132px] flex-col justify-between gap-3">
+    <div className="metric-card px-6 py-5 pb-6 flex min-h-[140px] flex-col gap-4">
       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
         <Icon size={10} strokeWidth={2.5} /> {label}
       </div>
       <span className={`text-4xl font-bold tabular-nums leading-none ${color}`}>{value}</span>
-      {sub && <span className="text-xs text-slate-500 leading-snug">{sub}</span>}
+      {sub && <span className="mt-auto text-xs text-slate-500 leading-snug">{sub}</span>}
     </div>
   );
 }

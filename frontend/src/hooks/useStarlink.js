@@ -12,6 +12,7 @@ export function useStarlink() {
   const [speedtestLatest, setSpeedtestLatest] = useState(null);
   const [speedtestHistory, setSpeedtestHistory] = useState([]);
   const [uptimeMonitors, setUptimeMonitors] = useState([]);
+  const [failoverData, setFailoverData] = useState(null);
   const [connected, setConnected] = useState(false);
   const [timeRange, setTimeRange] = useState(1); // hours
   const wsRef = useRef(null);
@@ -104,6 +105,15 @@ export function useStarlink() {
     } catch { /* ignore */ }
   }, [timeRange]);
 
+  // Fetch failover event history
+  const fetchFailover = useCallback(async () => {
+    try {
+      const res = await fetch('/api/failover/history?hours=168');
+      const data = await res.json();
+      setFailoverData(data);
+    } catch { /* ignore */ }
+  }, []);
+
   // Fetch Uptime Kuma monitor statuses
   const fetchUptime = useCallback(async () => {
     try {
@@ -135,6 +145,7 @@ export function useStarlink() {
     fetchAlerts();
     fetchOutages();
     fetchRouter();
+    fetchFailover();
     fetchSpeedtest();
     fetchUptime();
     const interval = setInterval(() => {
@@ -144,16 +155,17 @@ export function useStarlink() {
       fetchAlerts();
       fetchOutages();
       fetchRouter();
+      fetchFailover();
       fetchSpeedtest();
       fetchUptime();
     }, 10000);
     return () => clearInterval(interval);
-  }, [fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchSpeedtest, fetchUptime]);
+  }, [fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchFailover, fetchSpeedtest, fetchUptime]);
 
   return {
     status, history, bulkHistory, obstruction,
     alerts, outages,
-    routerStatus, routerHistory,
+    routerStatus, routerHistory, failoverData,
     speedtestLatest, speedtestHistory,
     uptimeMonitors,
     connected, timeRange, setTimeRange,

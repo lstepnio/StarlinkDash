@@ -21,6 +21,7 @@ COPY backend/app.py ./
 COPY --from=frontend-build /app/frontend/dist ./static
 
 ENV STATIC_DIR=/app/static
+ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 

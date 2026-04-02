@@ -14,6 +14,7 @@ import RouterCards from './components/RouterCards';
 import RouterChart from './components/RouterChart';
 import SpeedtestSection from './components/SpeedtestSection';
 import UptimeKumaPanel from './components/UptimeKumaPanel';
+import FailoverLog from './components/FailoverLog';
 import ConnectionIndicator from './components/ConnectionIndicator';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import { Network } from 'lucide-react';
@@ -30,7 +31,7 @@ function App() {
   const {
     status, history, bulkHistory, obstruction,
     alerts, outages,
-    routerStatus, routerHistory,
+    routerStatus, routerHistory, failoverData,
     speedtestLatest, speedtestHistory,
     uptimeMonitors,
     connected, timeRange, setTimeRange,
@@ -80,6 +81,7 @@ function App() {
           <div className="space-y-4">
             <RouterCards routerStatus={routerStatus} />
             <RouterChart routerHistory={routerHistory} timeRange={timeRange} />
+            <FailoverLog failoverData={failoverData} />
           </div>
         </div>
 

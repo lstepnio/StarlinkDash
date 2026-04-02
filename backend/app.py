@@ -49,6 +49,10 @@ latest_router: dict[str, Any] = {}
 latest_uptime_monitors: list[dict] = []
 connected_clients: set[WebSocket] = set()
 
+# Failover state tracking
+_last_active_wan: str | None = None
+_failover_start_ts: float | None = None
+
 # ---------------------------------------------------------------------------
 # SQLite
 # ---------------------------------------------------------------------------
@@ -175,6 +179,20 @@ def init_db():
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_speedtest_ts ON speedtest_results(ts)")
+
+    # Failover events log
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS failover_events (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_ts    REAL NOT NULL,
+            end_ts      REAL,
+            duration_s  REAL,
+            from_wan    TEXT,
+            to_wan      TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_failover_start ON failover_events(start_ts)")
+
     conn.commit()
     conn.close()
 
@@ -705,6 +723,80 @@ def query_router_history(hours: float = 1.0) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Failover event tracking
+# ---------------------------------------------------------------------------
+
+def _track_failover(active_wan: str):
+    """Track WAN failover state transitions."""
+    global _last_active_wan, _failover_start_ts
+
+    if _last_active_wan is None:
+        # First poll — just record current state, don't create an event
+        _last_active_wan = active_wan
+        if active_wan == "wan2":
+            _failover_start_ts = time.time()
+        return
+
+    if active_wan == _last_active_wan:
+        return  # No change
+
+    now = time.time()
+
+    if active_wan == "wan2" and _last_active_wan != "wan2":
+        # Failover started: primary → failover
+        _failover_start_ts = now
+        with _db_lock:
+            try:
+                conn = _get_conn()
+                conn.execute(
+                    "INSERT INTO failover_events (start_ts, from_wan, to_wan) VALUES (?,?,?)",
+                    (now, _last_active_wan, active_wan),
+                )
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f"[Failover] Insert error: {e}")
+        print(f"[Failover] STARTED — switched from {_last_active_wan} to {active_wan}")
+
+    elif _last_active_wan == "wan2" and active_wan != "wan2":
+        # Failover ended: failover → primary
+        duration = now - _failover_start_ts if _failover_start_ts else None
+        with _db_lock:
+            try:
+                conn = _get_conn()
+                conn.execute(
+                    "UPDATE failover_events SET end_ts=?, duration_s=? "
+                    "WHERE end_ts IS NULL ORDER BY start_ts DESC LIMIT 1",
+                    (now, duration),
+                )
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f"[Failover] Update error: {e}")
+        dur_str = f" ({duration:.0f}s)" if duration else ""
+        print(f"[Failover] ENDED — back to {active_wan}{dur_str}")
+        _failover_start_ts = None
+
+    _last_active_wan = active_wan
+
+
+def query_failover_events(hours: float = 168.0) -> list[dict]:
+    cutoff = time.time() - hours * 3600
+    with _db_lock:
+        try:
+            conn = _get_conn()
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM failover_events WHERE start_ts>? ORDER BY start_ts DESC",
+                (cutoff,),
+            ).fetchall()
+            conn.close()
+            return [dict(r) for r in rows]
+        except Exception:
+            return []
+
+
+# ---------------------------------------------------------------------------
 # gRPC fetchers (reused channel)
 # ---------------------------------------------------------------------------
 
@@ -879,14 +971,33 @@ def _parse_speedtest_result(r: dict) -> dict | None:
     }
 
 
+def _find_last_page() -> int:
+    """Discover the last page number (newest results) from the API."""
+    resp = _speedtest_api_get("/results?page%5Bnumber%5D=1")
+    if not resp or "meta" not in resp:
+        return 1
+    return resp["meta"].get("last_page", 1)
+
+
 def sync_speedtest_results(backfill: bool = False):
-    """Fetch results from speedtest-tracker and INSERT OR IGNORE into local DB."""
+    """Fetch results from speedtest-tracker and INSERT OR IGNORE into local DB.
+
+    The API returns oldest-first, so we fetch from the last page (newest)
+    backwards to get the most recent results first.
+    """
     if not SPEEDTEST_URL or not SPEEDTEST_API_TOKEN:
         return
 
-    pages = range(1, 8) if backfill else range(1, 2)  # up to 7 pages on backfill
-    inserted = 0
+    last_page = _find_last_page()
 
+    if backfill:
+        # Fetch the last 7 pages (newest ~175 results)
+        pages = range(last_page, max(last_page - 7, 0), -1)
+    else:
+        # Normal sync: just the last page (25 most recent)
+        pages = [last_page]
+
+    inserted = 0
     for page in pages:
         resp = _speedtest_api_get(f"/results?page%5Bnumber%5D={page}")
         if not resp or "data" not in resp:
@@ -915,12 +1026,12 @@ def sync_speedtest_results(backfill: bool = False):
             conn.commit()
             conn.close()
 
-        # Stop early pages if we stopped inserting new rows (already synced)
+        # For normal sync, stop if nothing new was inserted
         if not backfill and inserted == 0:
             break
 
     if inserted:
-        print(f"[Speedtest] Synced {inserted} new result(s)")
+        print(f"[Speedtest] Synced {inserted} new result(s) (from page {last_page})")
 
 
 def query_speedtest_history(hours: float = 24.0) -> list[dict]:
@@ -972,6 +1083,8 @@ def run_retention_cleanup():
                          (now - RETENTION_ROUTER_DAYS * 86400,))
             conn.execute("DELETE FROM speedtest_results WHERE ts < ?",
                          (now - RETENTION_SPEEDTEST_DAYS * 86400,))
+            conn.execute("DELETE FROM failover_events WHERE start_ts < ?",
+                         (now - RETENTION_ROUTER_DAYS * 86400,))
             conn.commit()
             conn.close()
             print("[Retention] Cleanup complete")
@@ -1059,26 +1172,37 @@ def _uptime_kuma_poll_thread():
 
 
 def _speedtest_poll_thread():
+    print(f"[Speedtest] Thread started (URL={SPEEDTEST_URL})")
     # Backfill on first run if DB is empty
-    with _db_lock:
-        try:
+    try:
+        with _db_lock:
             conn = _get_conn()
             count = conn.execute("SELECT COUNT(*) FROM speedtest_results").fetchone()[0]
             conn.close()
-        except Exception:
-            count = 0
+    except Exception as e:
+        print(f"[Speedtest] DB check error: {e}")
+        count = 0
     if count == 0:
         print("[Speedtest] Empty DB — backfilling up to 7 pages of history…")
-        sync_speedtest_results(backfill=True)
+        try:
+            sync_speedtest_results(backfill=True)
+        except Exception as e:
+            print(f"[Speedtest] Backfill error: {e}")
 
     _cleanup_tick = 0
     while True:
         t0 = time.time()
-        sync_speedtest_results()
+        try:
+            sync_speedtest_results()
+        except Exception as e:
+            print(f"[Speedtest] Sync error: {e}")
         _cleanup_tick += 1
         if _cleanup_tick >= 12:   # run retention cleanup every ~hour (12 × 5 min)
             _cleanup_tick = 0
-            run_retention_cleanup()
+            try:
+                run_retention_cleanup()
+            except Exception as e:
+                print(f"[Speedtest] Cleanup error: {e}")
         time.sleep(max(0, SPEEDTEST_POLL_INTERVAL - (time.time() - t0)))
 
 
@@ -1090,6 +1214,8 @@ def _router_poll_thread():
         latest_router = r
         if not r.get("error"):
             store_router_status(r)
+            if r.get("active_wan"):
+                _track_failover(r["active_wan"])
         time.sleep(max(0, ROUTER_POLL_INTERVAL - (time.time() - t0)))
 
 
@@ -1190,6 +1316,21 @@ async def get_router_history(hours: float = 1.0):
     loop = asyncio.get_event_loop()
     rows = await loop.run_in_executor(None, query_router_history, hours)
     return {"rows": rows, "count": len(rows)}
+
+
+@app.get("/api/failover/history")
+async def get_failover_history(hours: float = 168.0):
+    hours = min(max(hours, 1.0), 8760.0)
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None, query_failover_events, hours)
+    # Include current failover state
+    active = _failover_start_ts is not None
+    return {
+        "events": rows,
+        "count": len(rows),
+        "failover_active": active,
+        "failover_since": _failover_start_ts,
+    }
 
 
 @app.get("/api/speedtest/latest")

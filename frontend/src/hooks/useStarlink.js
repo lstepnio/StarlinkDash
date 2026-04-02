@@ -158,7 +158,7 @@ export function useStarlink() {
       fetchFailover();
       fetchSpeedtest();
       fetchUptime();
-    }, 10000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchFailover, fetchSpeedtest, fetchUptime]);
 

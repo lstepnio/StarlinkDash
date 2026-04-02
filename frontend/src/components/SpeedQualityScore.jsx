@@ -157,7 +157,7 @@ export default function SpeedQualityScore({ status, history }) {
             </div>
           ))}
         </div>
-        <div className="text-[10px] text-slate-600 mt-1">Composite score: latency + loss + throughput + obstruction</div>
+        <div className="text-[10px] text-slate-400 mt-1">Composite score: latency + loss + throughput + obstruction</div>
       </div>
     </ChartCard>
   );

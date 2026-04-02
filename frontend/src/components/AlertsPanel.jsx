@@ -89,7 +89,7 @@ export default function AlertsPanel({ alerts }) {
                     <span className={`text-[10px] font-medium ${ev.active ? 'text-red-400' : 'text-slate-500'}`}>
                       {ev.active ? 'FIRED' : 'CLEARED'}
                     </span>
-                    <span className="text-slate-600 text-[10px] tabular-nums">{formatTs(ev.ts)}</span>
+                    <span className="text-slate-400 text-[10px] tabular-nums">{formatTs(ev.ts)}</span>
                   </div>
                 </div>
               ))}
@@ -99,7 +99,7 @@ export default function AlertsPanel({ alerts }) {
       )}
 
       {events.length === 0 && active.length === 0 && (
-        <div className="text-xs text-slate-600 mt-1">No alert history in the last 24 hours</div>
+        <div className="text-xs text-slate-400 mt-1">No alert history in the last 24 hours</div>
       )}
     </ChartCard>
   );

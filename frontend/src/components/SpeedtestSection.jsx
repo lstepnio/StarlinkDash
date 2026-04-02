@@ -27,12 +27,12 @@ function fmtAge(ts) {
 function MetricBadge({ icon: Icon, label, value, unit, color }) {
   return (
     <div className="metric-card accent-slate p-4 flex flex-col gap-1">
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
         <Icon size={10} strokeWidth={2.5} /> {label}
       </div>
       <div className="flex items-baseline gap-1">
         <span className={`text-2xl font-bold tabular-nums leading-none ${color}`}>{value}</span>
-        {unit && <span className="text-xs text-slate-600">{unit}</span>}
+        {unit && <span className="text-xs text-slate-400">{unit}</span>}
       </div>
     </div>
   );
@@ -76,10 +76,10 @@ export default function SpeedtestSection({ latest, history }) {
       {latest && latest.ts ? (
         <div className="space-y-2">
           <div className="flex items-center justify-between px-0.5">
-            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
               <Zap size={11} /> Latest Speedtest · {fmtAge(latest.ts)}
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-slate-600">
+            <div className="flex items-center gap-2 text-[10px] text-slate-400">
               {latest.isp && <span className="flex items-center gap-1"><Server size={10}/>{latest.isp}</span>}
               {latest.result_url && (
                 <a href={latest.result_url} target="_blank" rel="noopener noreferrer"
@@ -102,7 +102,7 @@ export default function SpeedtestSection({ latest, history }) {
           </div>
         </div>
       ) : (
-        <div className="chart-card py-4 flex items-center gap-3 text-slate-600 text-sm">
+        <div className="chart-card py-4 flex items-center gap-3 text-slate-400 text-sm">
           <Zap size={15} /> No speedtest results yet — waiting for first sync…
         </div>
       )}
@@ -145,7 +145,7 @@ export default function SpeedtestSection({ latest, history }) {
                   strokeWidth={2} name="Upload" dot={{ r: 3, fill: '#8b5cf6' }} isAnimationActive={false} />
               </ComposedChart>
             </ResponsiveContainer>
-            <div className="text-center text-[10px] text-slate-700 mt-1">Mbps</div>
+            <div className="text-center text-[10px] text-slate-500 mt-1">Mbps</div>
           </ChartCard>
 
           {/* Ping / Jitter history */}
@@ -177,7 +177,7 @@ export default function SpeedtestSection({ latest, history }) {
                   strokeWidth={2} name="Ping" dot={{ r: 3, fill: '#10b981' }} isAnimationActive={false} />
               </ComposedChart>
             </ResponsiveContainer>
-            <div className="text-center text-[10px] text-slate-700 mt-1">ms</div>
+            <div className="text-center text-[10px] text-slate-500 mt-1">ms</div>
           </ChartCard>
         </div>
       )}

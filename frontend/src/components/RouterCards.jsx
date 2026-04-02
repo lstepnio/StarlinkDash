@@ -21,15 +21,15 @@ function formatUptime(s) {
 function StatChip({ icon: Icon, label, value, unit, color = 'text-slate-300', sub }) {
   return (
     <div className="metric-card accent-slate p-4 flex flex-col gap-0.5">
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600 mb-1">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">
         <Icon size={10} strokeWidth={2.5} />
         {label}
       </div>
       <div className="flex items-baseline gap-1 min-w-0">
         <span className={`text-lg font-bold tabular-nums leading-tight truncate ${color}`}>{value}</span>
-        {unit && <span className="text-xs text-slate-600 shrink-0">{unit}</span>}
+        {unit && <span className="text-xs text-slate-400 shrink-0">{unit}</span>}
       </div>
-      {sub && <div className="text-[10px] text-slate-600 truncate">{sub}</div>}
+      {sub && <div className="text-[10px] text-slate-400 truncate">{sub}</div>}
     </div>
   );
 }
@@ -46,7 +46,7 @@ function WanCard({ label, iface, up, ip, inBps, outBps, errors, isActive, isFail
     <div className={`metric-card ${accent} p-4 space-y-2`}>
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
           <Router size={10} strokeWidth={2.5} />
           {label}
         </div>
@@ -72,18 +72,18 @@ function WanCard({ label, iface, up, ip, inBps, outBps, errors, isActive, isFail
       {/* Traffic */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <div className="text-[9px] text-slate-600 uppercase tracking-widest flex items-center gap-1">
+          <div className="text-[9px] text-slate-400 uppercase tracking-widest flex items-center gap-1">
             <ArrowDown size={9} /> In
           </div>
           <span className="text-sm font-bold text-cyan-400 tabular-nums">{inVal}</span>
-          <span className="text-[10px] text-slate-600 ml-1">{inUnit}</span>
+          <span className="text-[10px] text-slate-400 ml-1">{inUnit}</span>
         </div>
         <div>
-          <div className="text-[9px] text-slate-600 uppercase tracking-widest flex items-center gap-1">
+          <div className="text-[9px] text-slate-400 uppercase tracking-widest flex items-center gap-1">
             <ArrowUp size={9} /> Out
           </div>
           <span className="text-sm font-bold text-violet-400 tabular-nums">{outVal}</span>
-          <span className="text-[10px] text-slate-600 ml-1">{outUnit}</span>
+          <span className="text-[10px] text-slate-400 ml-1">{outUnit}</span>
         </div>
       </div>
 
@@ -102,7 +102,7 @@ export default function RouterCards({ routerStatus }) {
   if (!routerStatus) {
     return (
       <div className="chart-card flex items-center gap-3 py-3">
-        <Router size={15} className="text-slate-600 shrink-0" />
+        <Router size={15} className="text-slate-400 shrink-0" />
         <span className="text-sm text-slate-500">Connecting to ERLite3…</span>
       </div>
     );

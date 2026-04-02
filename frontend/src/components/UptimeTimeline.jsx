@@ -69,7 +69,7 @@ export default function UptimeTimeline({ history, outages }) {
               <span className="text-emerald-400 font-semibold">{uptimePct}%</span> online
             </span>
           )}
-          <div className="flex items-center gap-3 text-slate-600">
+          <div className="flex items-center gap-3 text-slate-400">
             <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-emerald-500/60"/>Online</span>
             <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-amber-400/60"/>Degraded</span>
             <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-red-500/65"/>Offline</span>
@@ -100,7 +100,7 @@ export default function UptimeTimeline({ history, outages }) {
           return (
             <span
               key={i}
-              className="absolute text-[9px] text-slate-700 -translate-x-1/2 whitespace-nowrap"
+              className="absolute text-[9px] text-slate-500 -translate-x-1/2 whitespace-nowrap"
               style={{ left: `${pct}%` }}
             >
               {label}

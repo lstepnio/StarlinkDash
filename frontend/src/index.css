@@ -16,7 +16,7 @@ html {
 
 body {
   background-color: #030712;
-  color: #e2e8f0;
+  color: #f1f5f9;
   -webkit-font-smoothing: antialiased;
   background-image:
     radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 100, 220, 0.12), transparent),
@@ -75,7 +75,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #475569;
+  color: #94a3b8;
   padding-bottom: 6px;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   margin-bottom: 10px;

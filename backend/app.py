@@ -18,7 +18,7 @@ import starlink_grpc
 STATIC_DIR = Path(os.environ.get("STATIC_DIR", "../frontend/dist"))
 STARLINK_TARGET = os.environ.get("STARLINK_TARGET", "192.168.100.1:9200")
 DB_PATH = os.environ.get("DB_PATH", "/data/starlinkdash.db")
-POLL_INTERVAL = int(os.environ.get("STARLINK_POLL_INTERVAL", "3"))
+POLL_INTERVAL = int(os.environ.get("STARLINK_POLL_INTERVAL", "10"))
 OUTAGE_THRESHOLD = 15  # seconds before declaring an outage
 
 # Router (ERLite3) SNMP settings
@@ -27,7 +27,7 @@ ROUTER_COMMUNITY = os.environ.get("ROUTER_COMMUNITY", "root123")
 ROUTER_LAN_IFACE = os.environ.get("ROUTER_LAN_IFACE", "eth0")
 ROUTER_WAN_IFACE = os.environ.get("ROUTER_WAN_IFACE", "eth1")
 ROUTER_WAN2_IFACE = os.environ.get("ROUTER_WAN2_IFACE", "eth2")
-ROUTER_POLL_INTERVAL = int(os.environ.get("ROUTER_POLL_INTERVAL", "10"))
+ROUTER_POLL_INTERVAL = int(os.environ.get("ROUTER_POLL_INTERVAL", "30"))
 
 # Speedtest Tracker integration
 SPEEDTEST_URL = os.environ.get("SPEEDTEST_URL", "").rstrip("/")
@@ -37,7 +37,7 @@ SPEEDTEST_POLL_INTERVAL = int(os.environ.get("SPEEDTEST_POLL_INTERVAL", "300")) 
 # Uptime Kuma integration
 UPTIME_KUMA_URL = os.environ.get("UPTIME_KUMA_URL", "").rstrip("/")
 UPTIME_KUMA_API_KEY = os.environ.get("UPTIME_KUMA_API_KEY", "")
-UPTIME_KUMA_POLL_INTERVAL = int(os.environ.get("UPTIME_KUMA_POLL_INTERVAL", "30"))
+UPTIME_KUMA_POLL_INTERVAL = int(os.environ.get("UPTIME_KUMA_POLL_INTERVAL", "60"))
 
 # Data retention
 RETENTION_STARLINK_DAYS = int(os.environ.get("RETENTION_STARLINK_DAYS", "30"))

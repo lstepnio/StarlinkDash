@@ -44,7 +44,7 @@ export default function LatencyChart({ history, bulkHistory, timeRange }) {
   if (!data.length) {
     return (
       <ChartCard title="Latency & Packet Loss">
-        <div className="h-[240px] flex items-center justify-center text-slate-600 text-sm">
+        <div className="h-[240px] flex items-center justify-center text-slate-400 text-sm">
           Collecting data…
         </div>
       </ChartCard>
@@ -62,7 +62,7 @@ export default function LatencyChart({ history, bulkHistory, timeRange }) {
       <span className="text-slate-500">Avg: <span className="text-emerald-400 font-semibold">{avgLat.toFixed(1)} ms</span></span>
       <span className="text-slate-500">Peak: <span className="text-slate-300 font-semibold">{maxLat.toFixed(1)} ms</span></span>
       <span className="text-slate-500">Drops: <span className={`font-semibold ${dropEvents > 0 ? 'text-red-400' : 'text-slate-400'}`}>{dropEvents} ({totalDropPct}%)</span></span>
-      {isBulk && <span className="text-slate-600 text-[10px] ml-auto">1-sec samples</span>}
+      {isBulk && <span className="text-slate-400 text-[10px] ml-auto">1-sec samples</span>}
     </div>
   );
 
@@ -104,7 +104,7 @@ export default function LatencyChart({ history, bulkHistory, timeRange }) {
             name="Drop Events" barSize={isBulk ? 3 : 6} isAnimationActive={false} />
         </ComposedChart>
       </ResponsiveContainer>
-      <div className="text-center text-[10px] text-slate-700 mt-1">ms (left axis) · % packet loss (right axis)</div>
+      <div className="text-center text-[10px] text-slate-500 mt-1">ms (left axis) · % packet loss (right axis)</div>
     </ChartCard>
   );
 }

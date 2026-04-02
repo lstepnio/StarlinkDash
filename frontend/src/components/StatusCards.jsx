@@ -42,15 +42,15 @@ function HeroCard({ icon: Icon, label, value, unit, accent = 'accent-blue', sub 
 function DetailCard({ icon: Icon, label, value, unit, color = 'text-slate-300', sub }) {
   return (
     <div className="metric-card accent-slate p-4 flex flex-col gap-0.5">
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600 mb-1">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">
         <Icon size={10} strokeWidth={2.5} />
         {label}
       </div>
       <div className="flex items-baseline gap-1 min-w-0">
         <span className={`text-lg font-bold tabular-nums leading-tight truncate ${color}`}>{value}</span>
-        {unit && <span className="text-xs text-slate-600 shrink-0">{unit}</span>}
+        {unit && <span className="text-xs text-slate-400 shrink-0">{unit}</span>}
       </div>
-      {sub && <div className="text-[10px] text-slate-600 truncate">{sub}</div>}
+      {sub && <div className="text-[10px] text-slate-400 truncate">{sub}</div>}
     </div>
   );
 }

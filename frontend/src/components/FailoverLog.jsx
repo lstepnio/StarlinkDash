@@ -29,7 +29,7 @@ export default function FailoverLog({ failoverData }) {
 
   if (!events.length && !isActive) {
     return (
-      <div className="chart-card py-3 px-4 flex items-center gap-3 text-slate-600 text-xs">
+      <div className="chart-card py-3 px-4 flex items-center gap-3 text-slate-400 text-xs">
         <CheckCircle2 size={13} className="text-emerald-500/60" />
         No failover events recorded in the last 7 days
       </div>
@@ -53,7 +53,7 @@ export default function FailoverLog({ failoverData }) {
         <div className="chart-card overflow-hidden">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-[10px] uppercase tracking-widest text-slate-600 border-b border-white/[0.04]">
+              <tr className="text-[10px] uppercase tracking-widest text-slate-400 border-b border-white/[0.04]">
                 <th className="text-left py-2 px-3 font-semibold">Started</th>
                 <th className="text-left py-2 px-3 font-semibold">Ended</th>
                 <th className="text-left py-2 px-3 font-semibold">Duration</th>

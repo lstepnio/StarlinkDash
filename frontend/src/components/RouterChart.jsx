@@ -40,7 +40,7 @@ export default function RouterChart({ routerHistory }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {['Router WAN Throughput', 'Router CPU & Memory'].map((t) => (
           <ChartCard key={t} title={t}>
-            <div className="h-[180px] flex items-center justify-center text-slate-600 text-sm">
+            <div className="h-[180px] flex items-center justify-center text-slate-400 text-sm">
               Collecting router data…
             </div>
           </ChartCard>
@@ -103,7 +103,7 @@ export default function RouterChart({ routerHistory }) {
               strokeWidth={1.5} strokeDasharray="4 3" name="WAN2 Out" dot={false} isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
-        <div className="text-center text-[10px] text-slate-700 mt-1">Mbps — solid=in, dashed=out</div>
+        <div className="text-center text-[10px] text-slate-500 mt-1">Mbps — solid=in, dashed=out</div>
       </ChartCard>
 
       {/* CPU + Memory */}
@@ -136,7 +136,7 @@ export default function RouterChart({ routerHistory }) {
               strokeWidth={2} name="Memory" dot={false} isAnimationActive={false} connectNulls />
           </ComposedChart>
         </ResponsiveContainer>
-        <div className="text-center text-[10px] text-slate-700 mt-1">% utilization</div>
+        <div className="text-center text-[10px] text-slate-500 mt-1">% utilization</div>
       </ChartCard>
     </div>
   );

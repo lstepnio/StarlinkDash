@@ -44,7 +44,7 @@ function MonitorCard({ monitor }) {
       </div>
 
       {/* Bottom row: host + response time + cert */}
-      <div className="flex items-center justify-between gap-2 text-[10px] text-slate-600">
+      <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400">
         {displayHost && (
           <span className="font-mono truncate">{displayHost}</span>
         )}
@@ -73,7 +73,7 @@ function MonitorCard({ monitor }) {
 export default function UptimeKumaPanel({ monitors }) {
   if (!monitors?.length) {
     return (
-      <div className="chart-card py-4 flex items-center gap-3 text-slate-600 text-sm">
+      <div className="chart-card py-4 flex items-center gap-3 text-slate-400 text-sm">
         <Activity size={15} /> Connecting to Uptime Kuma…
       </div>
     );
@@ -106,7 +106,7 @@ export default function UptimeKumaPanel({ monitors }) {
             : `${downCount} service${downCount > 1 ? 's' : ''} down · ${upCount}/${total} operational`}
         </span>
         <a href="https://status.majjix.com" target="_blank" rel="noopener noreferrer"
-           className="ml-auto flex items-center gap-1 text-[10px] text-slate-600 hover:text-slate-400 transition-colors">
+           className="ml-auto flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-300 transition-colors">
           <ExternalLink size={9} /> status.majjix.com
         </a>
       </div>

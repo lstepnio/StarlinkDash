@@ -46,7 +46,7 @@ export default function ThroughputChart({ history, bulkHistory, timeRange }) {
   if (!data.length) {
     return (
       <ChartCard title="Throughput">
-        <div className="h-[240px] flex items-center justify-center text-slate-600 text-sm">
+        <div className="h-[240px] flex items-center justify-center text-slate-400 text-sm">
           Collecting data…
         </div>
       </ChartCard>
@@ -67,7 +67,7 @@ export default function ThroughputChart({ history, bulkHistory, timeRange }) {
       <span className="text-slate-500">Avg DL: <span className="text-cyan-400 font-semibold">{formatBpsValue(avgDown)}</span></span>
       <span className="text-slate-500">Peak: <span className="text-slate-300 font-semibold">{formatBpsValue(maxDown)}</span></span>
       <span className="text-slate-500">Avg UL: <span className="text-violet-400 font-semibold">{formatBpsValue(avgUp)}</span></span>
-      {isBulk && <span className="text-slate-600 text-[10px] ml-auto">1-sec samples</span>}
+      {isBulk && <span className="text-slate-400 text-[10px] ml-auto">1-sec samples</span>}
     </div>
   );
 
@@ -109,7 +109,7 @@ export default function ThroughputChart({ history, bulkHistory, timeRange }) {
             strokeWidth={2} name="Upload" dot={false} isAnimationActive={false} />
         </AreaChart>
       </ResponsiveContainer>
-      <div className="text-center text-[10px] text-slate-700 mt-1">Mbps</div>
+      <div className="text-center text-[10px] text-slate-500 mt-1">Mbps</div>
     </ChartCard>
   );
 }

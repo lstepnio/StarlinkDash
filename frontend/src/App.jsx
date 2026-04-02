@@ -21,7 +21,7 @@ import { Network } from 'lucide-react';
 
 function SectionLabel({ children }) {
   return (
-    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600 px-0.5 mb-1">
+    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 px-0.5 mb-1">
       {children}
     </div>
   );
@@ -39,8 +39,6 @@ function App() {
 
   useNotifications(status, outages);
 
-  const dishInfo = status?.header || {};
-
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -49,14 +47,7 @@ function App() {
           <div className="bg-blue-500/10 p-2 rounded-xl border border-blue-500/15">
             <Network className="text-blue-400" size={20} />
           </div>
-          <div>
-            <h1 className="text-base font-bold tracking-tight leading-tight text-slate-100">Network &amp; Service Dashboard</h1>
-            <div className="flex items-center gap-2 text-[10px] text-slate-600 font-mono mt-0.5">
-              {dishInfo.id && <span>{dishInfo.id.slice(-8)}</span>}
-              {dishInfo.hardware_version && <><span className="text-slate-700">·</span><span>{dishInfo.hardware_version}</span></>}
-              {dishInfo.software_version && <><span className="text-slate-700">·</span><span>{dishInfo.software_version}</span></>}
-            </div>
-          </div>
+          <h1 className="text-base font-bold tracking-tight leading-tight text-slate-100">Network &amp; Service Dashboard</h1>
         </div>
         <div className="flex items-center gap-2.5">
           <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
@@ -141,9 +132,8 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="px-5 md:px-8 py-3 border-t border-white/[0.04] flex items-center justify-between text-[10px] text-slate-700">
+      <footer className="px-5 md:px-8 py-3 border-t border-white/[0.04] flex items-center justify-between text-[10px] text-slate-500">
         <span className="font-medium">Network &amp; Service Dashboard</span>
-        <span>Starlink {dishInfo.id ? dishInfo.id.slice(-8) : '192.168.100.1'} · Router {routerStatus?.wan1_ip ?? '192.168.10.1'} · every {timeRange <= 0.25 ? '3s' : '10s'}</span>
       </footer>
     </div>
   );

@@ -544,7 +544,6 @@ async def _async_snmp_get(oids: list[tuple]) -> dict | None:
                 except ValueError:
                     return None
         return None
-
     async def _read_single(dispatcher, transport, oid: tuple):
         errorIndication, errorStatus, _, varBinds = await get_cmd(
             dispatcher,

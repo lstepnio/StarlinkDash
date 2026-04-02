@@ -75,7 +75,7 @@ function App() {
   return (
     <div className="app-shell min-h-screen flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#030712]/80 backdrop-blur-2xl">
+      <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#030712]/92">
         <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-5 py-4 md:px-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/15 bg-cyan-400/10 shadow-[0_0_0_1px_rgba(34,211,238,0.05)]">
@@ -191,15 +191,14 @@ function App() {
           </div>
         </SectionBlock>
 
-        {/* Quality + Alerts */}
+        {/* Quality */}
         <SectionBlock
           eyebrow="Quality"
-          title="Quality score and alerts"
-          description="A compressed service-quality summary alongside raw alert state and recent alert transitions."
+          title="Quality score"
+          description="A compressed service-quality summary derived from latency, loss, throughput, and obstruction."
         >
-          <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-4">
+          <div className="grid grid-cols-1 items-start gap-4">
             <SpeedQualityScore status={status} history={history} />
-            <AlertsPanel alerts={alerts} />
           </div>
         </SectionBlock>
 
@@ -220,13 +219,15 @@ function App() {
           </div>
         </SectionBlock>
 
-        {/* Outage log */}
         <SectionBlock
           eyebrow="Incidents"
-          title="Outage log"
-          description="Historical disconnect windows and their reported causes."
+          title="Alerts and outage history"
+          description="Current Starlink alerts and recent outage windows grouped together for faster incident review."
         >
-          <OutageLog outages={outages} />
+          <div className="grid grid-cols-1 xl:grid-cols-2 items-start gap-4">
+            <AlertsPanel alerts={alerts} />
+            <OutageLog outages={outages} />
+          </div>
         </SectionBlock>
 
       </main>

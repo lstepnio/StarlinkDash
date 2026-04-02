@@ -2,7 +2,7 @@ IMAGE   ?= ghcr.io/YOUR_GITHUB_USER/starlinkdash
 TAG     ?= latest
 PLATFORM ?= linux/amd64
 
-.PHONY: build push run dev clean
+.PHONY: build push release run up down restart logs clean
 
 ## Build the production Docker image for linux/amd64
 build:
@@ -15,22 +15,26 @@ push: build
 ## Build + push in one step (CI shorthand)
 release: push
 
-## Run locally (dev mode, mounts no volume, uses .env in project root)
+## Build and start the local compose stack
 run:
 	docker compose -f docker-compose.yml up --build
 
-## Run the production compose stack from the deploy/ directory
-deploy:
-	docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
+## Start the compose stack in detached mode
+up:
+	docker compose -f docker-compose.yml up -d
 
-## Pull latest image and restart the deploy stack
-update:
-	docker compose -f deploy/docker-compose.yml --env-file deploy/.env pull
-	docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
+## Stop the compose stack
+down:
+	docker compose -f docker-compose.yml down
 
-## Stop the deploy stack
-stop:
-	docker compose -f deploy/docker-compose.yml --env-file deploy/.env down
+## Pull latest image and recreate the service
+restart:
+	docker compose -f docker-compose.yml pull
+	docker compose -f docker-compose.yml up -d --force-recreate
+
+## Tail compose logs
+logs:
+	docker compose -f docker-compose.yml logs -f --tail=200
 
 ## Remove stopped containers and dangling images
 clean:

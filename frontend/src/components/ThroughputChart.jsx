@@ -72,7 +72,11 @@ export default function ThroughputChart({ history, bulkHistory, timeRange }) {
   );
 
   return (
-    <ChartCard title="Throughput" action={stats}>
+    <ChartCard
+      title="Throughput"
+      subtitle="Live Starlink throughput. The 15-minute range uses dish bulk samples; longer windows use persisted snapshots."
+      action={stats}
+    >
       <ResponsiveContainer width="100%" height={240}>
         <AreaChart data={data} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
           <defs>
@@ -109,7 +113,7 @@ export default function ThroughputChart({ history, bulkHistory, timeRange }) {
             strokeWidth={2} name="Upload" dot={false} isAnimationActive={false} />
         </AreaChart>
       </ResponsiveContainer>
-      <div className="text-center text-[10px] text-slate-500 mt-1">Mbps</div>
+      <div className="text-center text-[10px] text-slate-500 mt-1">Mbps · 1-second samples only in the 15m view</div>
     </ChartCard>
   );
 }

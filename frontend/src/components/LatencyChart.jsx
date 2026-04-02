@@ -72,7 +72,11 @@ export default function LatencyChart({ history, bulkHistory, timeRange }) {
   );
 
   return (
-    <ChartCard title="Latency & Packet Loss" action={stats}>
+    <ChartCard
+      title="Latency & Packet Loss"
+      subtitle="Packet loss bars show loss percentage per sample. “Affected samples” means any non-zero loss; “Full loss” means a complete miss for that sample."
+      action={stats}
+    >
       <ResponsiveContainer width="100%" height={240}>
         <ComposedChart data={data} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
           <defs>
@@ -109,7 +113,7 @@ export default function LatencyChart({ history, bulkHistory, timeRange }) {
             name="Packet Loss" barSize={isBulk ? 3 : 6} isAnimationActive={false} />
         </ComposedChart>
       </ResponsiveContainer>
-      <div className="text-center text-[10px] text-slate-500 mt-1">ms (left axis) · % packet loss (right axis)</div>
+      <div className="text-center text-[10px] text-slate-500 mt-1">ms (left axis) · % packet loss (right axis) · 1-second samples only in the 15m view</div>
     </ChartCard>
   );
 }

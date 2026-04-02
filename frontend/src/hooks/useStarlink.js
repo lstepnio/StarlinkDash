@@ -1,5 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+async function fetchJson(url, { timeoutMs = 8000 } = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+    return await res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export function useStarlink() {
   const [config, setConfig] = useState(null);
   const [status, setStatus] = useState(null);
@@ -50,8 +64,7 @@ export function useStarlink() {
 
   const fetchConfig = useCallback(async () => {
     try {
-      const res = await fetch('/api/config');
-      const data = await res.json();
+      const data = await fetchJson('/api/config');
       setConfig(data);
     } catch { /* ignore */ }
   }, []);
@@ -59,8 +72,7 @@ export function useStarlink() {
   // Fetch persisted history from SQLite
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch(`/api/history?hours=${timeRange}`);
-      const data = await res.json();
+      const data = await fetchJson(`/api/history?hours=${timeRange}`);
       if (data.rows) setHistory(data.rows);
     } catch { /* ignore */ }
   }, [timeRange]);
@@ -68,8 +80,7 @@ export function useStarlink() {
   // Fetch bulk history (power data from dish)
   const fetchBulk = useCallback(async () => {
     try {
-      const res = await fetch('/api/history/bulk');
-      const data = await res.json();
+      const data = await fetchJson('/api/history/bulk');
       if (!data.error) setBulkHistory(data);
     } catch { /* ignore */ }
   }, []);
@@ -77,8 +88,7 @@ export function useStarlink() {
   // Fetch obstruction map
   const fetchObstruction = useCallback(async () => {
     try {
-      const res = await fetch('/api/obstruction');
-      const data = await res.json();
+      const data = await fetchJson('/api/obstruction');
       if (data.snr) setObstruction(data);
     } catch { /* ignore */ }
   }, []);
@@ -86,8 +96,7 @@ export function useStarlink() {
   // Fetch alert log
   const fetchAlerts = useCallback(async () => {
     try {
-      const res = await fetch('/api/alerts?hours=24');
-      const data = await res.json();
+      const data = await fetchJson('/api/alerts?hours=24');
       setAlerts(data);
     } catch { /* ignore */ }
   }, []);
@@ -95,8 +104,7 @@ export function useStarlink() {
   // Fetch outage log
   const fetchOutages = useCallback(async () => {
     try {
-      const res = await fetch('/api/outages?hours=24');
-      const data = await res.json();
+      const data = await fetchJson('/api/outages?hours=24');
       setOutages(data);
     } catch { /* ignore */ }
   }, []);
@@ -104,12 +112,10 @@ export function useStarlink() {
   // Fetch router status + history
   const fetchRouter = useCallback(async () => {
     try {
-      const [sRes, hRes] = await Promise.all([
-        fetch('/api/router/status'),
-        fetch(`/api/router/history?hours=${timeRange}`),
+      const [s, h] = await Promise.all([
+        fetchJson('/api/router/status'),
+        fetchJson(`/api/router/history?hours=${timeRange}`),
       ]);
-      const s = await sRes.json();
-      const h = await hRes.json();
       setRouterStatus(s);
       if (h.rows) setRouterHistory(h.rows);
     } catch { /* ignore */ }
@@ -118,8 +124,7 @@ export function useStarlink() {
   // Fetch failover event history
   const fetchFailover = useCallback(async () => {
     try {
-      const res = await fetch('/api/failover/history?hours=168');
-      const data = await res.json();
+      const data = await fetchJson('/api/failover/history?hours=168');
       setFailoverData(data);
     } catch { /* ignore */ }
   }, []);
@@ -127,8 +132,7 @@ export function useStarlink() {
   // Fetch Tautulli (Plex) data
   const fetchTautulli = useCallback(async () => {
     try {
-      const res = await fetch('/api/tautulli');
-      const data = await res.json();
+      const data = await fetchJson('/api/tautulli');
       if (data && Object.keys(data).length) setTautulliData(data);
     } catch { /* ignore */ }
   }, []);
@@ -136,8 +140,7 @@ export function useStarlink() {
   // Fetch Uptime Kuma monitor statuses
   const fetchUptime = useCallback(async () => {
     try {
-      const res = await fetch('/api/uptime');
-      const data = await res.json();
+      const data = await fetchJson('/api/uptime');
       if (data.monitors) setUptimeMonitors(data.monitors);
     } catch { /* ignore */ }
   }, []);
@@ -145,18 +148,16 @@ export function useStarlink() {
   // Fetch speedtest latest + history (last 7 days)
   const fetchSpeedtest = useCallback(async () => {
     try {
-      const [lRes, hRes] = await Promise.all([
-        fetch('/api/speedtest/latest'),
-        fetch('/api/speedtest/history?hours=168'),
+      const [l, h] = await Promise.all([
+        fetchJson('/api/speedtest/latest'),
+        fetchJson('/api/speedtest/history?hours=168'),
       ]);
-      const l = await lRes.json();
-      const h = await hRes.json();
       if (!l.error) setSpeedtestLatest(l);
       if (h.rows) setSpeedtestHistory(h.rows);
     } catch { /* ignore */ }
   }, []);
 
-  // Initial load + polling
+  // Initial load + polling for always-on data
   useEffect(() => {
     fetchConfig();
     fetchHistory();
@@ -166,9 +167,6 @@ export function useStarlink() {
     fetchOutages();
     fetchRouter();
     fetchFailover();
-    fetchSpeedtest();
-    fetchUptime();
-    fetchTautulli();
     const interval = setInterval(() => {
       fetchHistory();
       fetchBulk();
@@ -177,12 +175,41 @@ export function useStarlink() {
       fetchOutages();
       fetchRouter();
       fetchFailover();
-      fetchSpeedtest();
-      fetchUptime();
-      fetchTautulli();
     }, 15000);
     return () => clearInterval(interval);
-  }, [fetchConfig, fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchFailover, fetchSpeedtest, fetchUptime, fetchTautulli]);
+  }, [fetchConfig, fetchHistory, fetchBulk, fetchObstruction, fetchAlerts, fetchOutages, fetchRouter, fetchFailover]);
+
+  // Optional integrations poll only when enabled
+  useEffect(() => {
+    if (!config) return;
+
+    if (config.speedtest_enabled) {
+      fetchSpeedtest();
+    } else {
+      setSpeedtestLatest(null);
+      setSpeedtestHistory([]);
+    }
+
+    if (config.uptime_kuma_enabled) {
+      fetchUptime();
+    } else {
+      setUptimeMonitors([]);
+    }
+
+    if (config.tautulli_enabled) {
+      fetchTautulli();
+    } else {
+      setTautulliData(null);
+    }
+
+    const interval = setInterval(() => {
+      if (config.speedtest_enabled) fetchSpeedtest();
+      if (config.uptime_kuma_enabled) fetchUptime();
+      if (config.tautulli_enabled) fetchTautulli();
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [config, fetchSpeedtest, fetchUptime, fetchTautulli]);
 
   return {
     config,

@@ -465,7 +465,13 @@ async def _async_snmp_get(oids: list[tuple]) -> dict | None:
         if errorIndication or errorStatus:
             print(f"[SNMP] get error: {errorIndication or errorStatus}")
             return None
-        return {str(name): int(val) for name, val in varBinds}
+        out = {}
+        for name, val in varBinds:
+            try:
+                out[str(name)] = int(val)
+            except (ValueError, TypeError):
+                out[str(name)] = None
+        return out
     except Exception as e:
         print(f"[SNMP] get exception: {e}")
         return None
@@ -561,11 +567,19 @@ def fetch_router_status() -> dict[str, Any]:
 
     def _iface_oids(idx):
         return [
+            (f"1.3.6.1.2.1.2.2.1.7.{idx}",  None),  # ifAdminStatus
             (f"1.3.6.1.2.1.2.2.1.8.{idx}",  None),  # ifOperStatus
+            (f"1.3.6.1.2.1.2.2.1.5.{idx}",  None),  # ifSpeed
+            (f"1.3.6.1.2.1.31.1.1.1.15.{idx}", None),  # ifHighSpeed Mbps
+            (f"1.3.6.1.2.1.2.2.1.9.{idx}",  None),  # ifLastChange
             (f"1.3.6.1.2.1.2.2.1.10.{idx}", None),  # ifInOctets
             (f"1.3.6.1.2.1.2.2.1.16.{idx}", None),  # ifOutOctets
+            (f"1.3.6.1.2.1.31.1.1.1.6.{idx}", None),  # ifHCInOctets
+            (f"1.3.6.1.2.1.31.1.1.1.10.{idx}", None), # ifHCOutOctets
             (f"1.3.6.1.2.1.2.2.1.14.{idx}", None),  # ifInErrors
             (f"1.3.6.1.2.1.2.2.1.20.{idx}", None),  # ifOutErrors
+            (f"1.3.6.1.2.1.2.2.1.13.{idx}", None),  # ifInDiscards
+            (f"1.3.6.1.2.1.2.2.1.19.{idx}", None),  # ifOutDiscards
         ]
 
     if wan1_idx: oids += _iface_oids(wan1_idx)
@@ -596,11 +610,31 @@ def fetch_router_status() -> dict[str, Any]:
     uptime_s = (uptime_raw / 100) if uptime_raw else None
 
     # Interface status
+    def _admin(idx): return data.get(f"1.3.6.1.2.1.2.2.1.7.{idx}") if idx else None
     def _oper(idx): return data.get(f"1.3.6.1.2.1.2.2.1.8.{idx}") == 1 if idx else False
     def _errs(idx): return (
         (data.get(f"1.3.6.1.2.1.2.2.1.14.{idx}") or 0) +
         (data.get(f"1.3.6.1.2.1.2.2.1.20.{idx}") or 0)
     ) if idx else 0
+    def _discards(idx): return (
+        (data.get(f"1.3.6.1.2.1.2.2.1.13.{idx}") or 0) +
+        (data.get(f"1.3.6.1.2.1.2.2.1.19.{idx}") or 0)
+    ) if idx else 0
+    def _speed_mbps(idx):
+        if not idx:
+            return None
+        hi = data.get(f"1.3.6.1.2.1.31.1.1.1.15.{idx}")
+        if hi:
+            return hi
+        speed = data.get(f"1.3.6.1.2.1.2.2.1.5.{idx}")
+        return round(speed / 1_000_000) if speed else None
+    def _last_change_age_s(idx):
+        if not idx or not uptime_raw:
+            return None
+        last_change = data.get(f"1.3.6.1.2.1.2.2.1.9.{idx}")
+        if not last_change:
+            return None
+        return max(0, (uptime_raw - last_change) / 100)
 
     wan1_up = _oper(wan1_idx)
     wan2_up = _oper(wan2_idx)
@@ -619,36 +653,57 @@ def fetch_router_status() -> dict[str, Any]:
     wan1_ip = _router_ip_cache.get(wan1_idx) if wan1_idx else None
     wan2_ip = _router_ip_cache.get(wan2_idx) if wan2_idx else None
 
-    def _ckey(idx, direction):
-        sfx = "10" if direction == "in" else "16"
-        return f"1.3.6.1.2.1.2.2.1.{sfx}.{idx}"
+    def _counter_keys(idx, direction):
+        if direction == "in":
+            return (
+                f"1.3.6.1.2.1.31.1.1.1.6.{idx}",
+                f"1.3.6.1.2.1.2.2.1.10.{idx}",
+            )
+        return (
+            f"1.3.6.1.2.1.31.1.1.1.10.{idx}",
+            f"1.3.6.1.2.1.2.2.1.16.{idx}",
+        )
 
-    def _rate(key):
+    def _rate(keys):
+        primary_key, fallback_key = keys
+        cur = data.get(primary_key)
+        key = primary_key
+        bits = 64
+        if cur is None:
+            cur = data.get(fallback_key)
+            key = fallback_key
+            bits = 32
         cur = data.get(key)
-        if cur is None: return None
+        if cur is None:
+            return None
         prev_ts  = _router_prev.get("ts", 0)
         prev_val = _router_prev.get(key)
-        if prev_val is None or prev_ts == 0: return None
+        if prev_val is None or prev_ts == 0:
+            return None
         dt = now - prev_ts
-        if dt <= 0: return None
+        if dt <= 0:
+            return None
         delta = cur - prev_val
         if delta < 0:
-            delta += 2 ** 32  # 32-bit counter wrap
+            delta += 2 ** bits
         return (delta * 8) / dt
 
-    wan1_in  = _rate(_ckey(wan1_idx, "in"))  if wan1_idx else None
-    wan1_out = _rate(_ckey(wan1_idx, "out")) if wan1_idx else None
-    wan2_in  = _rate(_ckey(wan2_idx, "in"))  if wan2_idx else None
-    wan2_out = _rate(_ckey(wan2_idx, "out")) if wan2_idx else None
-    lan_in   = _rate(_ckey(lan_idx,  "in"))  if lan_idx  else None
-    lan_out  = _rate(_ckey(lan_idx,  "out")) if lan_idx  else None
+    wan1_in  = _rate(_counter_keys(wan1_idx, "in"))  if wan1_idx else None
+    wan1_out = _rate(_counter_keys(wan1_idx, "out")) if wan1_idx else None
+    wan2_in  = _rate(_counter_keys(wan2_idx, "in"))  if wan2_idx else None
+    wan2_out = _rate(_counter_keys(wan2_idx, "out")) if wan2_idx else None
+    lan_in   = _rate(_counter_keys(lan_idx,  "in"))  if lan_idx  else None
+    lan_out  = _rate(_counter_keys(lan_idx,  "out")) if lan_idx  else None
 
     # Save counter snapshot
     new_prev: dict = {"ts": now}
     for idx in filter(None, [wan1_idx, wan2_idx, lan_idx]):
         for d in ("in", "out"):
-            k = _ckey(idx, d)
-            new_prev[k] = data.get(k)
+            primary_key, fallback_key = _counter_keys(idx, d)
+            if data.get(primary_key) is not None:
+                new_prev[primary_key] = data.get(primary_key)
+            elif data.get(fallback_key) is not None:
+                new_prev[fallback_key] = data.get(fallback_key)
     _router_prev = new_prev
 
     return {
@@ -661,16 +716,24 @@ def fetch_router_status() -> dict[str, Any]:
         "wan1_in_bps":  wan1_in,
         "wan1_out_bps": wan1_out,
         "wan1_up":   wan1_up,
+        "wan1_admin_up": _admin(wan1_idx) == 1 if wan1_idx else None,
         "wan1_ip":   wan1_ip,
         "wan1_iface": ROUTER_WAN_IFACE,
         "wan1_errors": _errs(wan1_idx),
+        "wan1_discards": _discards(wan1_idx),
+        "wan1_speed_mbps": _speed_mbps(wan1_idx),
+        "wan1_last_change_s": _last_change_age_s(wan1_idx),
         # WAN2 (Secondary / Starlink failover)
         "wan2_in_bps":  wan2_in,
         "wan2_out_bps": wan2_out,
         "wan2_up":   wan2_up,
+        "wan2_admin_up": _admin(wan2_idx) == 1 if wan2_idx else None,
         "wan2_ip":   wan2_ip,
         "wan2_iface": ROUTER_WAN2_IFACE,
         "wan2_errors": _errs(wan2_idx),
+        "wan2_discards": _discards(wan2_idx),
+        "wan2_speed_mbps": _speed_mbps(wan2_idx),
+        "wan2_last_change_s": _last_change_age_s(wan2_idx),
         # LAN
         "lan_in_bps":  lan_in,
         "lan_out_bps": lan_out,

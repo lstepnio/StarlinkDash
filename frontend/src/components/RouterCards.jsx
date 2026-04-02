@@ -18,6 +18,20 @@ function formatUptime(s) {
   return `${m}m`;
 }
 
+function formatLinkSpeed(mbps) {
+  if (mbps == null) return 'Unknown';
+  if (mbps >= 1000) return `${(mbps / 1000).toFixed(mbps % 1000 === 0 ? 0 : 1)} Gbps`;
+  return `${mbps} Mbps`;
+}
+
+function formatAge(s) {
+  if (s == null) return 'Unknown';
+  if (s < 60) return `${Math.round(s)}s ago`;
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86400)}d ago`;
+}
+
 function StatChip({ icon: Icon, label, value, unit, color = 'text-slate-300', sub }) {
   return (
     <div className="metric-card accent-slate p-4 flex flex-col gap-0.5">
@@ -34,9 +48,11 @@ function StatChip({ icon: Icon, label, value, unit, color = 'text-slate-300', su
   );
 }
 
-function WanCard({ label, iface, up, ip, inBps, outBps, errors, isActive, isFailover }) {
+function WanCard({ label, iface, up, adminUp, ip, inBps, outBps, errors, discards, speedMbps, lastChangeS, isActive, isFailover }) {
   const { value: inVal, unit: inUnit } = formatBps(inBps);
   const { value: outVal, unit: outUnit } = formatBps(outBps);
+  const statusText = adminUp === false ? 'Admin Down' : up ? 'Link Up' : 'Link Down';
+  const statusColor = adminUp === false ? 'text-slate-400' : up ? 'text-emerald-400' : 'text-red-400';
 
   const accent = isActive
     ? (isFailover ? 'accent-amber' : 'accent-green')
@@ -69,6 +85,13 @@ function WanCard({ label, iface, up, ip, inBps, outBps, errors, isActive, isFail
         {ip ?? (up ? 'Acquiring IP…' : 'No link')}
       </div>
 
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+        <div className="text-slate-400">Admin: <span className={adminUp ? 'text-slate-200' : 'text-slate-500'}>{adminUp == null ? 'Unknown' : adminUp ? 'Up' : 'Down'}</span></div>
+        <div className="text-slate-400">Oper: <span className={statusColor}>{statusText}</span></div>
+        <div className="text-slate-400">Speed: <span className="text-slate-300">{formatLinkSpeed(speedMbps)}</span></div>
+        <div className="text-slate-400">Last change: <span className="text-slate-300">{formatAge(lastChangeS)}</span></div>
+      </div>
+
       {/* Traffic */}
       <div className="grid grid-cols-2 gap-2">
         <div>
@@ -88,10 +111,11 @@ function WanCard({ label, iface, up, ip, inBps, outBps, errors, isActive, isFail
       </div>
 
       {/* Errors */}
-      {errors > 0 && (
-        <div className="flex items-center gap-1 text-[10px] text-amber-400">
+      {(errors > 0 || discards > 0) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-amber-400">
           <AlertTriangle size={10} />
-          {errors} interface errors
+          {errors > 0 && <span>{errors} errors</span>}
+          {discards > 0 && <span>{discards} discards</span>}
         </div>
       )}
     </div>
@@ -153,10 +177,14 @@ export default function RouterCards({ routerStatus }) {
           label={`WAN1 · ${r.wan1_iface ?? 'eth1'} · ForceBB (Primary)`}
           iface={r.wan1_iface}
           up={r.wan1_up}
+          adminUp={r.wan1_admin_up}
           ip={r.wan1_ip}
           inBps={r.wan1_in_bps}
           outBps={r.wan1_out_bps}
           errors={r.wan1_errors}
+          discards={r.wan1_discards}
+          speedMbps={r.wan1_speed_mbps}
+          lastChangeS={r.wan1_last_change_s}
           isActive={r.active_wan === 'wan1'}
           isFailover={false}
         />
@@ -164,10 +192,14 @@ export default function RouterCards({ routerStatus }) {
           label={`WAN2 · ${r.wan2_iface ?? 'eth2'} · Starlink (Failover)`}
           iface={r.wan2_iface}
           up={r.wan2_up}
+          adminUp={r.wan2_admin_up}
           ip={r.wan2_ip}
           inBps={r.wan2_in_bps}
           outBps={r.wan2_out_bps}
           errors={r.wan2_errors}
+          discards={r.wan2_discards}
+          speedMbps={r.wan2_speed_mbps}
+          lastChangeS={r.wan2_last_change_s}
           isActive={r.active_wan === 'wan2'}
           isFailover={true}
         />

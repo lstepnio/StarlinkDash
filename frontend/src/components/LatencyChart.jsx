@@ -74,7 +74,6 @@ export default function LatencyChart({ history, bulkHistory, timeRange }) {
   return (
     <ChartCard
       title="Latency & Packet Loss"
-      subtitle="Packet loss bars show loss percentage per sample. “Affected samples” means any non-zero loss; “Full loss” means a complete miss for that sample."
       action={stats}
     >
       <ResponsiveContainer width="100%" height={240}>

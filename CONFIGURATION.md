@@ -66,6 +66,34 @@ Notes:
 - `TAUTULLI_URL`
 - `TAUTULLI_API_KEY`
 
+## AI Assistant
+
+- `AI_PROVIDER`
+  Default: `openai`
+  Supports the default OpenAI API and OpenAI-compatible gateways that expose `/chat/completions` with JSON responses.
+
+- `AI_BASE_URL`
+  Default: `https://api.openai.com/v1`
+
+- `AI_MODEL`
+- `AI_API_KEY`
+- `AI_TIMEOUT_S`
+- `AI_TEMPERATURE`
+- `AI_MAX_OUTPUT_TOKENS`
+- `AI_MAX_PROMPT_CHARS`
+- `AI_CACHE_TTL_S`
+- `AI_RATE_LIMIT_REQUESTS`
+- `AI_RATE_LIMIT_WINDOW_S`
+- `AI_DAILY_REQUEST_LIMIT`
+- `AI_DAILY_TOKEN_BUDGET`
+
+Notes:
+
+- The assistant stays disabled unless both `AI_MODEL` and `AI_API_KEY` are set.
+- Requests are read-only and use sanitized metric summaries instead of raw URLs, hostnames, IPs, or environment variables.
+- Caching plus request and token budgets are the built-in cost controls.
+- Reducing `AI_MAX_OUTPUT_TOKENS` and tightening rate limits will lower spend the most.
+
 ## Operator Guidance
 
 - Leave integrations unset unless you actively use them.

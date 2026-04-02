@@ -11,6 +11,7 @@ It is designed for operators who want one place to view Starlink health, WAN fai
 - Optional Speedtest Tracker benchmark history
 - Optional Uptime Kuma service health
 - Optional Tautulli media activity
+- Optional read-only AI assistant for concise operational summaries
 - Docker-first deployment with health endpoints and container healthcheck
 
 ## Quick Start
@@ -50,6 +51,7 @@ Optional integrations:
 - Speedtest Tracker: `SPEEDTEST_URL`, `SPEEDTEST_API_TOKEN`
 - Uptime Kuma: `UPTIME_KUMA_URL`, `UPTIME_KUMA_API_KEY`
 - Tautulli: `TAUTULLI_URL`, `TAUTULLI_API_KEY`
+- AI assistant: `AI_API_KEY`, `AI_MODEL`, optional `AI_BASE_URL`
 
 Retention and polling controls are also configurable. See:
 

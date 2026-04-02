@@ -17,6 +17,7 @@ import FailoverLog from './components/FailoverLog';
 import TautulliSection from './components/TautulliSection';
 import ConnectionIndicator from './components/ConnectionIndicator';
 import TimeRangeSelector from './components/TimeRangeSelector';
+import AssistantPanel from './components/AssistantPanel';
 import { Activity, Gauge, Network, Satellite, ShieldCheck } from 'lucide-react';
 
 function SectionBlock({ eyebrow, title, description, children, action }) {
@@ -115,6 +116,7 @@ function App() {
 
       {/* Main */}
       <main className="mx-auto flex-1 w-full max-w-[1680px] px-5 py-6 md:px-8 md:py-8 space-y-6">
+        <AssistantPanel config={config} />
 
         {/* ── 1. Router — ERLite3 ── */}
         <SectionBlock

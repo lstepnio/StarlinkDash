@@ -29,6 +29,9 @@ The container includes:
 - Preserve `Host`
 - If you expose the app cross-origin, set `CORS_ALLOWED_ORIGINS` explicitly
 - Terminate TLS at the proxy
+- Forward `X-Forwarded-Proto` so HTTPS deployments receive HSTS
+- Add authentication, VPN access, or IP allowlists before exposing the dashboard on the public internet
+- Avoid caching API responses or WebSocket upgrades
 
 ## Persistence
 
@@ -47,4 +50,3 @@ docker compose up -d --force-recreate starlinkdash
 - restrict network access to internal dashboards when possible
 - set log retention externally if you centralize logs
 - monitor `/healthz` and container health status
-

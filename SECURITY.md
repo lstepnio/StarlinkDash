@@ -20,4 +20,4 @@ Instead:
 - Prefer secret stores or runtime environment injection over hardcoding values.
 - Rotate any credential that has been pasted into chat, screenshots, shell history, or commits.
 - Do not expose the dashboard publicly without authentication or network restrictions unless you have explicitly accepted that risk.
-
+- The app emits baseline browser security headers, but TLS termination and access control still need to be enforced by your reverse proxy or ingress layer.

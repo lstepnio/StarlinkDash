@@ -1,69 +1,82 @@
 # StarlinkDash
 
-StarlinkDash is a self-hosted dashboard for Starlink dish telemetry with optional integrations for router SNMP, Speedtest Tracker, Uptime Kuma, and Tautulli.
+StarlinkDash is a self-hosted operations dashboard for Starlink dish telemetry with optional integrations for an EdgeRouter Lite, Speedtest Tracker, Uptime Kuma, and Tautulli.
 
-## Features
+It is designed for operators who want one place to view Starlink health, WAN failover state, packet loss, throughput, outages, service checks, and supporting context.
 
-- Live Starlink status, latency, packet loss, obstructions, and outage views
-- Router WAN/failover visibility via SNMP
-- Optional Speedtest Tracker history
+## Highlights
+
+- Live Starlink dish status, throughput, latency, packet loss, obstructions, and outages
+- Router WAN failover monitoring over SNMP, including richer interface state details
+- Optional Speedtest Tracker benchmark history
 - Optional Uptime Kuma service health
-- Optional Tautulli Plex activity
-
-Optional sections are automatically hidden when their integration is not configured.
+- Optional Tautulli media activity
+- Docker-first deployment with health endpoints and container healthcheck
 
 ## Quick Start
 
-1. Copy the example environment file:
-
 ```bash
 cp .env.example .env
-```
-
-2. Fill in the values you want to enable.
-
-3. Start the app:
-
-```bash
 docker compose up --build
 ```
 
-4. Open the dashboard at [http://localhost:8088](http://localhost:8088).
+Open [http://localhost:8088](http://localhost:8088).
+
+For a fuller first-run guide, see [QUICKSTART.md](/Users/lukasz.stepniowski/Development/StarlinkDash/QUICKSTART.md).
+
+## Architecture
+
+- Backend: FastAPI + SQLite + Starlink gRPC + optional HTTP/SNMP integrations
+- Frontend: React + Vite + Recharts
+- Packaging: multi-stage Docker image and Docker Compose
+
+See [ARCHITECTURE.md](/Users/lukasz.stepniowski/Development/StarlinkDash/ARCHITECTURE.md) for more detail.
 
 ## Configuration
 
-Core variables:
+All runtime configuration is environment-variable driven.
 
-- `STARLINK_TARGET`: Starlink gRPC target. Default is `192.168.100.1:9200`.
-- `DB_PATH`: SQLite database path inside the container.
+Core:
+
+- `STARLINK_TARGET`
+- `DB_PATH`
+- `LOG_LEVEL`
+- `CORS_ALLOWED_ORIGINS`
 
 Optional integrations:
 
-- `ROUTER_TARGET`, `ROUTER_COMMUNITY`, `ROUTER_LAN_IFACE`, `ROUTER_WAN_IFACE`, `ROUTER_WAN2_IFACE`
-- `SPEEDTEST_URL`, `SPEEDTEST_API_TOKEN`
-- `UPTIME_KUMA_URL`, `UPTIME_KUMA_API_KEY`
-- `TAUTULLI_URL`, `TAUTULLI_API_KEY`
+- Router SNMP: `ROUTER_TARGET`, `ROUTER_COMMUNITY`, `ROUTER_LAN_IFACE`, `ROUTER_WAN_IFACE`, `ROUTER_WAN2_IFACE`
+- Speedtest Tracker: `SPEEDTEST_URL`, `SPEEDTEST_API_TOKEN`
+- Uptime Kuma: `UPTIME_KUMA_URL`, `UPTIME_KUMA_API_KEY`
+- Tautulli: `TAUTULLI_URL`, `TAUTULLI_API_KEY`
 
-If an optional integration is left unset, its section will not appear in the UI.
+Retention and polling controls are also configurable. See:
+
+- [CONFIGURATION.md](/Users/lukasz.stepniowski/Development/StarlinkDash/CONFIGURATION.md)
+- [.env.example](/Users/lukasz.stepniowski/Development/StarlinkDash/.env.example)
+
+## Deployment
+
+The primary deployment target is Docker Compose. The image is also published to GHCR.
+
+See:
+
+- [DEPLOYMENT.md](/Users/lukasz.stepniowski/Development/StarlinkDash/DEPLOYMENT.md)
+- [TROUBLESHOOTING.md](/Users/lukasz.stepniowski/Development/StarlinkDash/TROUBLESHOOTING.md)
 
 ## Security Notes
 
-- Do not commit `.env` files or deployment secrets.
-- Rotate any token or API key that has been pasted into chat, terminal history, screenshots, or commits.
-- Set `ROUTER_COMMUNITY` explicitly if you use SNMP. This repo no longer ships a default community string.
+- Do not commit `.env` files, SNMP community strings, API tokens, or deployment credentials.
+- Rotate any credential that has been pasted into chat, screenshots, terminal history, or previous commits.
+- The app now exposes health endpoints at `/healthz`, `/readyz`, and `/api/health`.
+- Default CORS is limited to local development origins; production reverse-proxy deployments should set `CORS_ALLOWED_ORIGINS` explicitly when cross-origin access is needed.
 
-## Repo Hygiene
+See [SECURITY.md](/Users/lukasz.stepniowski/Development/StarlinkDash/SECURITY.md).
 
-Current protections in this repo:
+## Project Status
 
-- `.env` and `deploy/.env` are ignored by git
-- SQLite databases are ignored by git
-- build output is ignored by git
+The project is functional and actively being hardened for public release. Current limitations and launch blockers are tracked in [RELEASE_READINESS.md](/Users/lukasz.stepniowski/Development/StarlinkDash/RELEASE_READINESS.md).
 
-Before pushing, it is still worth checking:
+## Contributing
 
-```bash
-git diff
-git status
-rg -n "(API_KEY|TOKEN|SECRET|PASSWORD)" .
-```
+Contribution guidelines, development workflow, and repository expectations are documented in [CONTRIBUTING.md](/Users/lukasz.stepniowski/Development/StarlinkDash/CONTRIBUTING.md).

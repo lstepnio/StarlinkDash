@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #030712;
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 100, 220, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(6, 182, 212, 0.05), transparent);
+  background-attachment: fixed;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.25); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.4); }
+
+/* Base card */
+.card {
+  background: rgba(10, 17, 35, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+}
+.card:hover {
+  border-color: rgba(59, 130, 246, 0.18);
+}
+
+/* Metric card — primary tier */
+.metric-card {
+  background: rgba(10, 17, 35, 0.8);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 14px 14px 0 0;
+}
+.metric-card:hover {
+  border-color: rgba(59,130,246,0.2);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+.metric-card.accent-blue::before   { background: linear-gradient(90deg, #3b82f6, #06b6d4); }
+.metric-card.accent-cyan::before   { background: linear-gradient(90deg, #06b6d4, #0ea5e9); }
+.metric-card.accent-violet::before { background: linear-gradient(90deg, #8b5cf6, #6366f1); }
+.metric-card.accent-green::before  { background: linear-gradient(90deg, #10b981, #34d399); }
+.metric-card.accent-amber::before  { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.metric-card.accent-red::before    { background: linear-gradient(90deg, #ef4444, #f97316); }
+.metric-card.accent-slate::before  { background: linear-gradient(90deg, #475569, #64748b); }
+
+/* Section divider */
+.section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #475569;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  margin-bottom: 10px;
+}
+
+/* Chart card */
+.chart-card {
+  background: rgba(10, 17, 35, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.recharts-default-tooltip {
+  background-color: rgba(10, 17, 40, 0.97) !important;
+  border: 1px solid rgba(59,130,246,0.2) !important;
+  border-radius: 10px !important;
+  backdrop-filter: blur(16px) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
+  50%       { box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.15); }
+}
+.pulse-glow { animation: pulse-glow 2.5s ease-in-out infinite; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fade-in 0.3s ease-out; }

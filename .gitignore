@@ -1,0 +1,8 @@
+node_modules/
+frontend/dist/
+*.tar.gz
+*.db
+.env
+deploy/.env
+__pycache__/
+.vite/

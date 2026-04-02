@@ -1,0 +1,51 @@
+networks:
+  caddy:
+    external: true
+
+services:
+  starlinkdash:
+    image: ghcr.io/lstepnio/starlinkdash:latest
+    container_name: starlinkdash
+    restart: unless-stopped
+    networks:
+      - caddy
+    volumes:
+      - /docker/appdata/starlinkdash:/data
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: ${TZ:-America/Denver}
+
+      # Starlink dish
+      STARLINK_TARGET: ${STARLINK_TARGET:-192.168.100.1:9200}
+      STARLINK_POLL_INTERVAL: ${STARLINK_POLL_INTERVAL:-3}
+
+      # ERLite3 router (SNMP)
+      ROUTER_TARGET: ${ROUTER_TARGET:-192.168.10.1}
+      ROUTER_COMMUNITY: ${ROUTER_COMMUNITY:-public}
+      ROUTER_LAN_IFACE: ${ROUTER_LAN_IFACE:-eth0}
+      ROUTER_WAN_IFACE: ${ROUTER_WAN_IFACE:-eth1}
+      ROUTER_WAN2_IFACE: ${ROUTER_WAN2_IFACE:-eth2}
+      ROUTER_POLL_INTERVAL: ${ROUTER_POLL_INTERVAL:-10}
+
+      # Speedtest Tracker
+      SPEEDTEST_URL: ${SPEEDTEST_URL:-}
+      SPEEDTEST_API_TOKEN: ${SPEEDTEST_API_TOKEN:-}
+      SPEEDTEST_POLL_INTERVAL: ${SPEEDTEST_POLL_INTERVAL:-300}
+
+      # Uptime Kuma
+      UPTIME_KUMA_URL: ${UPTIME_KUMA_URL:-}
+      UPTIME_KUMA_API_KEY: ${UPTIME_KUMA_API_KEY:-}
+      UPTIME_KUMA_POLL_INTERVAL: ${UPTIME_KUMA_POLL_INTERVAL:-30}
+
+      # Database
+      DB_PATH: /data/starlinkdash.db
+
+      # Data retention
+      RETENTION_STARLINK_DAYS: ${RETENTION_STARLINK_DAYS:-30}
+      RETENTION_ROUTER_DAYS: ${RETENTION_ROUTER_DAYS:-30}
+      RETENTION_SPEEDTEST_DAYS: ${RETENTION_SPEEDTEST_DAYS:-365}
+
+    labels:
+      caddy: ${CADDY_HOSTNAME:-dash.majjix.com}
+      caddy.reverse_proxy: "{{upstreams 8000}}"

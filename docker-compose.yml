@@ -1,0 +1,24 @@
+services:
+  starlinkdash:
+    build: .
+    container_name: starlinkdash
+    ports:
+      - "8088:8000"
+    environment:
+      - STARLINK_TARGET=${STARLINK_TARGET:-192.168.100.1:9200}
+      - DB_PATH=/data/starlinkdash.db
+      - ROUTER_TARGET=${ROUTER_TARGET:-192.168.10.1}
+      - ROUTER_COMMUNITY=${ROUTER_COMMUNITY:-root123}
+      - ROUTER_LAN_IFACE=${ROUTER_LAN_IFACE:-eth0}
+      - ROUTER_WAN_IFACE=${ROUTER_WAN_IFACE:-eth1}
+      - ROUTER_WAN2_IFACE=${ROUTER_WAN2_IFACE:-eth2}
+      - SPEEDTEST_URL=${SPEEDTEST_URL:-}
+      - SPEEDTEST_API_TOKEN=${SPEEDTEST_API_TOKEN:-}
+      - UPTIME_KUMA_URL=${UPTIME_KUMA_URL:-}
+      - UPTIME_KUMA_API_KEY=${UPTIME_KUMA_API_KEY:-}
+    volumes:
+      - starlinkdash-data:/data
+    restart: unless-stopped
+
+volumes:
+  starlinkdash-data:

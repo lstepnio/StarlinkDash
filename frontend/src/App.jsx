@@ -212,7 +212,7 @@ function App() {
           title="Alerts and outage history"
           description="Current Starlink alerts and recent outage windows grouped together for faster incident review."
         >
-          <div className="grid grid-cols-1 xl:grid-cols-2 items-start gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <AlertsPanel alerts={alerts} />
             <OutageLog outages={outages} />
           </div>

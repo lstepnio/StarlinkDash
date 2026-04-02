@@ -519,6 +519,7 @@ _router_iface_lock = threading.Lock()
 _router_prev: dict = {}
 _router_ip_cache: dict[int, str] = {}   # ifIndex -> IP address
 _router_ip_ts: float = 0                # last time IP cache was refreshed
+_router_hc_support: dict[int, bool] = {}
 
 
 def _snmp_run(coro):
@@ -531,6 +532,19 @@ def _snmp_run(coro):
 
 
 async def _async_snmp_get(oids: list[tuple]) -> dict | None:
+    def _hc_idx_for_oid(oid_str: str) -> int | None:
+        prefixes = (
+            "1.3.6.1.2.1.31.1.1.1.6.",
+            "1.3.6.1.2.1.31.1.1.1.10.",
+        )
+        for prefix in prefixes:
+            if oid_str.startswith(prefix):
+                try:
+                    return int(oid_str[len(prefix):])
+                except ValueError:
+                    return None
+        return None
+
     async def _read_single(dispatcher, transport, oid: tuple):
         errorIndication, errorStatus, _, varBinds = await get_cmd(
             dispatcher,
@@ -541,12 +555,12 @@ async def _async_snmp_get(oids: list[tuple]) -> dict | None:
         if errorIndication:
             raise RuntimeError(str(errorIndication))
         if errorStatus or not varBinds:
-            return None
+            return oid[0], None, False
         name, val = varBinds[0]
         try:
-            return str(name), int(val)
+            return str(name), int(val), True
         except (ValueError, TypeError):
-            return str(name), None
+            return str(name), None, True
 
     dispatcher = SnmpDispatcher()
     try:
@@ -573,9 +587,12 @@ async def _async_snmp_get(oids: list[tuple]) -> dict | None:
                 except Exception as e:
                     print(f"[SNMP] single get exception for {oid[0]}: {e}")
                     continue
-                if item is None:
+                name, value, found = item
+                hc_idx = _hc_idx_for_oid(name)
+                if hc_idx is not None:
+                    _router_hc_support[hc_idx] = found
+                if not found:
                     continue
-                name, value = item
                 out[name] = value
             return out or None
         out = {}
@@ -686,7 +703,7 @@ def fetch_router_status() -> dict[str, Any]:
     ]
 
     def _iface_oids(idx):
-        return [
+        oids = [
             (f"1.3.6.1.2.1.2.2.1.7.{idx}",  None),  # ifAdminStatus
             (f"1.3.6.1.2.1.2.2.1.8.{idx}",  None),  # ifOperStatus
             (f"1.3.6.1.2.1.2.2.1.5.{idx}",  None),  # ifSpeed
@@ -694,13 +711,17 @@ def fetch_router_status() -> dict[str, Any]:
             (f"1.3.6.1.2.1.2.2.1.9.{idx}",  None),  # ifLastChange
             (f"1.3.6.1.2.1.2.2.1.10.{idx}", None),  # ifInOctets
             (f"1.3.6.1.2.1.2.2.1.16.{idx}", None),  # ifOutOctets
-            (f"1.3.6.1.2.1.31.1.1.1.6.{idx}", None),  # ifHCInOctets
-            (f"1.3.6.1.2.1.31.1.1.1.10.{idx}", None), # ifHCOutOctets
             (f"1.3.6.1.2.1.2.2.1.14.{idx}", None),  # ifInErrors
             (f"1.3.6.1.2.1.2.2.1.20.{idx}", None),  # ifOutErrors
             (f"1.3.6.1.2.1.2.2.1.13.{idx}", None),  # ifInDiscards
             (f"1.3.6.1.2.1.2.2.1.19.{idx}", None),  # ifOutDiscards
         ]
+        if _router_hc_support.get(idx, True):
+            oids += [
+                (f"1.3.6.1.2.1.31.1.1.1.6.{idx}", None),   # ifHCInOctets
+                (f"1.3.6.1.2.1.31.1.1.1.10.{idx}", None),  # ifHCOutOctets
+            ]
+        return oids
 
     if wan1_idx: oids += _iface_oids(wan1_idx)
     if wan2_idx: oids += _iface_oids(wan2_idx)

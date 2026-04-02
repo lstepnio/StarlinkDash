@@ -18,10 +18,10 @@ export default function LatencyChart({ history, bulkHistory, timeRange }) {
       for (let i = 0; i < len; i++) {
         const lat = latency[i];
         const drop = dropRate[i] || 0;
-        if (lat === null || lat === undefined) continue;
+        if ((lat === null || lat === undefined) && !drop) continue;
         points.push({
           ts: now - (len - 1 - i) * 1000,
-          latency: lat,
+          latency: lat ?? null,
           dropPct: drop * 100,
         });
       }
@@ -32,7 +32,7 @@ export default function LatencyChart({ history, bulkHistory, timeRange }) {
       return {
         data: history.map((r) => ({
           ts: r.ts * 1000,
-          latency: r.latency_ms || 0,
+          latency: r.latency_ms ?? null,
           dropPct: (r.drop_rate || 0) * 100,
         })),
         isBulk: false,
@@ -51,17 +51,22 @@ export default function LatencyChart({ history, bulkHistory, timeRange }) {
     );
   }
 
-  const lats = data.map((d) => d.latency).filter(Boolean);
+  const lats = data.map((d) => d.latency).filter((v) => v != null);
   const avgLat = lats.length ? lats.reduce((a, b) => a + b, 0) / lats.length : 0;
   const maxLat = lats.length ? Math.max(...lats) : 0;
-  const dropEvents = data.filter((d) => d.dropPct > 0).length;
-  const totalDropPct = data.length ? ((dropEvents / data.length) * 100).toFixed(2) : '0';
+  const avgLossPct = data.length ? data.reduce((sum, d) => sum + d.dropPct, 0) / data.length : 0;
+  const pingSuccessPct = Math.max(0, 100 - avgLossPct);
+  const impairedSamples = data.filter((d) => d.dropPct > 0).length;
+  const fullLossSamples = data.filter((d) => d.dropPct >= 100).length;
 
   const stats = (
     <div className="flex gap-4 text-xs">
       <span className="text-slate-500">Avg: <span className="text-emerald-400 font-semibold">{avgLat.toFixed(1)} ms</span></span>
       <span className="text-slate-500">Peak: <span className="text-slate-300 font-semibold">{maxLat.toFixed(1)} ms</span></span>
-      <span className="text-slate-500">Drops: <span className={`font-semibold ${dropEvents > 0 ? 'text-red-400' : 'text-slate-400'}`}>{dropEvents} ({totalDropPct}%)</span></span>
+      <span className="text-slate-500">Loss Avg: <span className={`font-semibold ${avgLossPct > 0 ? 'text-red-400' : 'text-slate-400'}`}>{avgLossPct.toFixed(2)}%</span></span>
+      <span className="text-slate-500">Ping Success: <span className={`font-semibold ${pingSuccessPct < 99 ? 'text-amber-300' : 'text-emerald-400'}`}>{pingSuccessPct.toFixed(2)}%</span></span>
+      <span className="text-slate-500">Full Loss: <span className={`font-semibold ${fullLossSamples > 0 ? 'text-red-400' : 'text-slate-400'}`}>{fullLossSamples}</span></span>
+      <span className="text-slate-500">Affected Samples: <span className={`font-semibold ${impairedSamples > 0 ? 'text-amber-300' : 'text-slate-400'}`}>{impairedSamples}</span></span>
       {isBulk && <span className="text-slate-400 text-[10px] ml-auto">1-sec samples</span>}
     </div>
   );
@@ -101,7 +106,7 @@ export default function LatencyChart({ history, bulkHistory, timeRange }) {
           <Area yAxisId="lat" type="monotone" dataKey="latency" stroke="#10b981" fill="url(#gLat)"
             strokeWidth={2} name="Latency" dot={false} isAnimationActive={false} />
           <Bar yAxisId="drop" dataKey="dropPct" fill="#ef4444" opacity={0.75}
-            name="Drop Events" barSize={isBulk ? 3 : 6} isAnimationActive={false} />
+            name="Packet Loss" barSize={isBulk ? 3 : 6} isAnimationActive={false} />
         </ComposedChart>
       </ResponsiveContainer>
       <div className="text-center text-[10px] text-slate-500 mt-1">ms (left axis) · % packet loss (right axis)</div>

@@ -1846,6 +1846,10 @@ def _ai_supports_temperature_override() -> bool:
     return not (AI_PROVIDER == "openai" and AI_MODEL.lower().startswith("gpt-5"))
 
 
+def _ai_uses_structured_output_schema() -> bool:
+    return AI_PROVIDER == "openai" and AI_MODEL.lower().startswith("gpt-5")
+
+
 def _extract_json_object(text: str) -> dict[str, Any] | None:
     text = (text or "").strip()
     if not text:
@@ -1887,12 +1891,33 @@ def _call_ai_completion(prompt: str, facts: list[dict[str, str]], labels: dict[s
     )
     body = {
         "model": AI_MODEL,
-        "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": json.dumps({"question": prompt, "facts": facts}, ensure_ascii=False)},
         ],
     }
+    if _ai_uses_structured_output_schema():
+        body["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "assistant_response",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "answer": {"type": "string"},
+                        "used_fact_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": ["answer", "used_fact_ids"],
+                    "additionalProperties": False,
+                },
+            },
+        }
+    else:
+        body["response_format"] = {"type": "json_object"}
     if _ai_supports_temperature_override():
         body["temperature"] = AI_TEMPERATURE
     token_limit_key = "max_completion_tokens" if _ai_uses_max_completion_tokens() else "max_tokens"

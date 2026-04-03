@@ -1531,8 +1531,8 @@ def fetch_tautulli_status() -> dict:
             for l in libs
         ]
 
-    # Recent history (last 5)
-    hist = _tautulli_api("get_history", length="8")
+    # Recent history (last 4)
+    hist = _tautulli_api("get_history", length="4")
     if hist and hist.get("data"):
         normalized_recent = []
         for h in hist["data"]:

@@ -1,13 +1,6 @@
-import { useMemo } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
-} from 'recharts';
-import {
-  Tv, Film, Play, Users, Wifi, Monitor, Eye, CircleHelp,
+  Tv, Film, Play, Eye, CircleHelp, Wifi,
 } from 'lucide-react';
-import ChartCard from './ChartCard';
-import { tooltipStyle } from '../utils/chart';
 
 function fmtDuration(s) {
   if (!s) return '—';
@@ -25,18 +18,6 @@ function fmtAge(ts) {
   const h = Math.floor(diffMin / 60);
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
-}
-
-function StatCard({ icon: Icon, label, value, sub, color = 'text-slate-200' }) {
-  return (
-    <div className="metric-card px-6 py-5 pb-6 flex min-h-[140px] flex-col gap-4">
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-        <Icon size={10} strokeWidth={2.5} /> {label}
-      </div>
-      <span className={`text-4xl font-bold tabular-nums leading-none ${color}`}>{value}</span>
-      {sub && <span className="mt-auto text-xs text-slate-500 leading-snug">{sub}</span>}
-    </div>
-  );
 }
 
 function healthTone(status) {
@@ -95,6 +76,33 @@ function StreamLocationBadge({ location }) {
   );
 }
 
+function fmtBandwidth(mbps) {
+  if (mbps == null) return '—';
+  if (mbps >= 1000) return `${(mbps / 1000).toFixed(1)} Gbps`;
+  return `${mbps.toFixed(1)} Mbps`;
+}
+
+function summaryTone(score) {
+  if (score == null) return 'text-slate-300';
+  if (score >= 90) return 'text-emerald-400';
+  if (score >= 75) return 'text-cyan-400';
+  if (score >= 55) return 'text-amber-400';
+  return 'text-red-400';
+}
+
+function SummaryPill({ label, value, sub, tone = 'text-slate-100', icon: Icon }) {
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 min-w-[150px]">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+        {Icon && <Icon size={10} strokeWidth={2.4} />}
+        {label}
+      </div>
+      <div className={`mt-2 text-lg font-semibold tabular-nums ${tone}`}>{value}</div>
+      {sub && <div className="mt-1 text-[11px] leading-snug text-slate-500">{sub}</div>}
+    </div>
+  );
+}
+
 function SessionRow({ session }) {
   const stateColor = session.state === 'playing' ? 'text-emerald-400' : session.state === 'paused' ? 'text-amber-400' : 'text-slate-500';
   const reasons = session.streamHealthReasons || [];
@@ -130,6 +138,7 @@ function SessionRow({ session }) {
         </div>
       </td>
       <td className="py-2 px-3 tabular-nums text-slate-400">{session.progress_pct}%</td>
+      <td className="py-2 px-3 tabular-nums text-slate-400">{fmtBandwidth(session.bandwidth_mbps)}</td>
       <td className="py-2 px-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={`text-[10px] font-medium capitalize ${stateColor}`}>{session.state || '—'}</span>
@@ -142,16 +151,21 @@ function SessionRow({ session }) {
 }
 
 function RecentRow({ item }) {
+  const playback = item.transcode_decision === 'transcode' ? 'Transcode' : item.transcode_decision === 'copy' ? 'Direct Stream' : 'Direct Play';
   return (
     <tr className="border-b border-white/[0.02]">
       <td className="py-2 px-3">
-        <div className="flex items-center gap-2">
-          {item.media_type === 'movie' ? <Film size={11} className="text-violet-400 shrink-0" /> : <Tv size={11} className="text-cyan-400 shrink-0" />}
-          <span className="text-slate-300 truncate max-w-[250px]">{item.title}</span>
+        <div className="flex min-w-0 items-start gap-2">
+          {item.media_type === 'movie' ? <Film size={11} className="text-violet-400 shrink-0 mt-0.5" /> : <Tv size={11} className="text-cyan-400 shrink-0 mt-0.5" />}
+          <div className="min-w-0">
+            <div className="text-slate-300 truncate max-w-[320px]">{item.title}</div>
+            <div className="mt-1 truncate text-[10px] text-slate-500">
+              {playback} · {item.platform || item.player || 'Unknown player'}
+            </div>
+          </div>
         </div>
       </td>
       <td className="py-2 px-3 text-slate-400">{item.user}</td>
-      <td className="py-2 px-3 text-slate-400">{item.platform}</td>
       <td className="py-2 px-3 tabular-nums text-slate-400">{fmtDuration(item.duration_s)}</td>
       <td className="py-2 px-3 text-slate-500 text-[10px]">{fmtAge(item.date)}</td>
     </tr>
@@ -159,16 +173,6 @@ function RecentRow({ item }) {
 }
 
 export default function TautulliSection({ data }) {
-  const chartData = useMemo(() => {
-    if (!data?.plays_by_date?.dates) return [];
-    const { dates, series } = data.plays_by_date;
-    return dates.map((d, i) => ({
-      date: d,
-      tv: series.tv?.[i] || 0,
-      movies: series.movies?.[i] || 0,
-    }));
-  }, [data]);
-
   if (!data) {
     return (
       <div className="chart-card py-4 flex items-center gap-3 text-slate-400 text-sm">
@@ -215,25 +219,10 @@ export default function TautulliSection({ data }) {
 
   return (
     <div className="space-y-4">
-      {/* Status cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        <StatCard icon={Play} label="Active Streams" color={streams > 0 ? 'text-emerald-400' : 'text-slate-300'}
-          value={streams} sub={streams > 0 ? `${data.total_bandwidth_mbps || 0} Mbps total` : 'No active streams'} />
-        <StatCard icon={Wifi} label="Bandwidth" value={`${data.total_bandwidth_mbps || 0}`}
-          sub={`LAN: ${data.lan_bandwidth_mbps || 0} · WAN: ${data.wan_bandwidth_mbps || 0} Mbps`}
-          color={data.total_bandwidth_mbps > 0 ? 'text-cyan-400' : 'text-slate-300'} />
-        <StatCard icon={Monitor} label="Stream Health" value={avgScore ?? '—'}
-          sub={streams > 0 ? `${statusCounts.Excellent || 0} excellent · ${statusCounts.Good || 0} good · ${statusCounts.Watch || 0} watch · ${statusCounts.Poor || 0} poor · ${statusCounts.Critical || 0} critical` : 'No active streams to score'}
-          color={avgScore >= 90 ? 'text-emerald-400' : avgScore >= 75 ? 'text-cyan-400' : avgScore >= 55 ? 'text-amber-400' : avgScore != null ? 'text-red-400' : 'text-slate-300'} />
-        <StatCard icon={Users} label="Network Path" value={lanStreams}
-          sub={streams > 0 ? `LAN: ${lanStreams} · WAN: ${wanStreams}` : 'No active streams'}
-          color={wanStreams > 0 ? 'text-cyan-400' : streams > 0 ? 'text-blue-400' : 'text-slate-300'} />
-      </div>
-
-      {/* Active sessions table */}
-      {sessions.length > 0 && (
-          <div className="chart-card overflow-hidden">
-            <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-white/[0.04]">
+      <div className="space-y-4">
+        <div className="chart-card overflow-hidden">
+          <div className="flex flex-col gap-4 px-3 py-3 border-b border-white/[0.04]">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
               <Play size={12} className="text-emerald-400" />
               <span className="text-xs font-semibold text-slate-300">Active Sessions</span>
@@ -246,6 +235,28 @@ export default function TautulliSection({ data }) {
                 <span>Inferred stream health</span>
               </div>
             </div>
+            <div className="flex flex-wrap gap-2.5">
+              <SummaryPill
+                label="Streams"
+                value={streams}
+                sub={streams > 0 ? `${lanStreams} LAN · ${wanStreams} WAN` : 'No active streams'}
+                tone={streams > 0 ? 'text-emerald-400' : 'text-slate-300'}
+              />
+              <SummaryPill
+                label="Bandwidth"
+                value={fmtBandwidth(data.total_bandwidth_mbps || 0)}
+                sub={`LAN: ${fmtBandwidth(data.lan_bandwidth_mbps || 0)} · WAN: ${fmtBandwidth(data.wan_bandwidth_mbps || 0)}`}
+                tone={data.total_bandwidth_mbps > 0 ? 'text-cyan-400' : 'text-slate-300'}
+                icon={Wifi}
+              />
+              <SummaryPill
+                label="Overall Health"
+                value={avgScore ?? '—'}
+                sub={`${statusCounts.Excellent || 0} excellent · ${statusCounts.Good || 0} good · ${statusCounts.Watch || 0} watch · ${statusCounts.Poor || 0} poor · ${statusCounts.Critical || 0} critical`}
+                tone={summaryTone(avgScore)}
+              />
+            </div>
+          </div>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-[10px] uppercase tracking-widest text-slate-400 border-b border-white/[0.04]">
@@ -254,41 +265,24 @@ export default function TautulliSection({ data }) {
                 <th className="text-left py-2 px-3 font-semibold">Player</th>
                 <th className="text-left py-2 px-3 font-semibold">Health</th>
                 <th className="text-left py-2 px-3 font-semibold">Progress</th>
+                <th className="text-left py-2 px-3 font-semibold">Bandwidth</th>
                 <th className="text-left py-2 px-3 font-semibold">Delivery</th>
               </tr>
             </thead>
             <tbody>
-              {sessions.map((s, i) => <SessionRow key={i} session={s} />)}
+              {sessions.length > 0 ? sessions.map((s, i) => <SessionRow key={i} session={s} />) : (
+                <tr>
+                  <td colSpan={7} className="px-3 py-6 text-sm text-slate-500 text-center">
+                    No active sessions right now.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Plays by date chart */}
-        {chartData.length > 0 && (
-          <ChartCard title="Plays — Last 30 Days">
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={chartData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} stroke="transparent"
-                  tickFormatter={(v) => { const d = new Date(v + 'T00:00:00'); return d.toLocaleDateString([], { month: 'short', day: 'numeric' }); }}
-                  minTickGap={40} />
-                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} stroke="transparent" width={24} allowDecimals={false} />
-                <Tooltip {...tooltipStyle}
-                  labelFormatter={(v) => { const d = new Date(v + 'T00:00:00'); return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }); }} />
-                <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 11, color: '#94a3b8', paddingTop: 6 }} />
-                <Bar dataKey="tv" fill="#06b6d4" name="TV" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="movies" fill="#8b5cf6" name="Movies" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        )}
-
-        {/* Recent history */}
         {recent.length > 0 && (
-          <div className="chart-card overflow-hidden min-h-[320px] flex flex-col">
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.04]">
+          <div className="chart-card overflow-hidden min-h-[280px] flex flex-col">
+            <div className="flex items-center gap-2 px-3 py-3 border-b border-white/[0.04]">
               <Eye size={12} className="text-slate-400" />
               <span className="text-xs font-semibold text-slate-300">Recently Watched</span>
             </div>
@@ -298,7 +292,6 @@ export default function TautulliSection({ data }) {
                   <tr className="text-[10px] uppercase tracking-widest text-slate-400 border-b border-white/[0.04]">
                     <th className="text-left py-2 px-3 font-semibold">Title</th>
                     <th className="text-left py-2 px-3 font-semibold">User</th>
-                    <th className="text-left py-2 px-3 font-semibold">Platform</th>
                     <th className="text-left py-2 px-3 font-semibold">Duration</th>
                     <th className="text-left py-2 px-3 font-semibold">When</th>
                   </tr>

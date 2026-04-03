@@ -223,7 +223,17 @@ function App() {
       <footer className="border-t border-white/[0.05] px-5 py-4 md:px-8">
         <div className="mx-auto flex w-full max-w-[1680px] items-center justify-between text-[10px] text-slate-500">
           <span className="font-medium">Home Dashboard</span>
-          <span>Starlink, router, and service telemetry</span>
+          <div className="flex items-center gap-3">
+            <span>Starlink, router, and service telemetry</span>
+            <a
+              href="https://github.com/lstepnio"
+              target="_blank"
+              rel="noreferrer"
+              className="text-slate-400 transition-colors hover:text-cyan-300"
+            >
+              github.com/lstepnio
+            </a>
+          </div>
         </div>
       </footer>
     </div>

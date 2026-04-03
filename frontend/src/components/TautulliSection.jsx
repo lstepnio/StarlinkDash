@@ -151,24 +151,45 @@ function SessionRow({ session }) {
 }
 
 function RecentRow({ item }) {
+  const reasons = item.streamHealthReasons || [];
+  const reasonText = reasons.join(' · ');
   return (
     <tr className="border-b border-white/[0.02]">
       <td className="py-2 px-3">
         <div className="flex min-w-0 items-start gap-2">
           {item.media_type === 'movie' ? <Film size={11} className="text-violet-400 shrink-0 mt-0.5" /> : <Tv size={11} className="text-cyan-400 shrink-0 mt-0.5" />}
           <div className="min-w-0">
-            <div className="text-slate-300 truncate max-w-[280px]">{item.title}</div>
+            <div className="text-slate-300 truncate max-w-[380px]">{item.title}</div>
+            {reasonText && (
+              <div className="mt-1 truncate text-[10px] text-slate-500" title={reasonText}>
+                {reasonText}
+              </div>
+            )}
           </div>
         </div>
       </td>
       <td className="py-2 px-3 text-slate-400">{item.user}</td>
       <td className="py-2 px-3 text-slate-400">{item.player || item.platform || '—'}</td>
       <td className="py-2 px-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <StreamDecisionBadge decision={item.transcode_decision} />
-          {item.location && <StreamLocationBadge location={item.location} />}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold tabular-nums text-slate-100">{item.streamHealthScore ?? '—'}</span>
+            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${healthTone(item.streamHealthStatus)}`}>
+              {item.streamHealthStatus || 'Unknown'}
+            </span>
+          </div>
+          <div className={`text-[10px] uppercase tracking-wide ${confidenceTone(item.streamHealthConfidence)}`}>
+            {item.streamHealthConfidence || 'low'} confidence
+          </div>
         </div>
       </td>
+      <td className="py-2 px-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StreamDecisionBadge decision={item.transcode_decision} />
+          <StreamLocationBadge location={item.location} />
+        </div>
+      </td>
+      <td className="py-2 px-3 tabular-nums text-slate-400">{fmtBandwidth(item.bandwidth_mbps)}</td>
       <td className="py-2 px-3 tabular-nums text-slate-400">{fmtDuration(item.duration_s)}</td>
       <td className="py-2 px-3 text-slate-500 text-[10px]">{fmtAge(item.date)}</td>
     </tr>
@@ -300,7 +321,9 @@ export default function TautulliSection({ data }) {
                     <th className="text-left py-2 px-3 font-semibold">Title</th>
                     <th className="text-left py-2 px-3 font-semibold">User</th>
                     <th className="text-left py-2 px-3 font-semibold">Player</th>
+                    <th className="text-left py-2 px-3 font-semibold">Health</th>
                     <th className="text-left py-2 px-3 font-semibold">Delivery</th>
+                    <th className="text-left py-2 px-3 font-semibold">Bandwidth</th>
                     <th className="text-left py-2 px-3 font-semibold">Duration</th>
                     <th className="text-left py-2 px-3 font-semibold">When</th>
                   </tr>

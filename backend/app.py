@@ -1534,21 +1534,19 @@ def fetch_tautulli_status() -> dict:
     # Recent history (last 5)
     hist = _tautulli_api("get_history", length="8")
     if hist and hist.get("data"):
-        result["recent"] = [
-            {
-                "title": h.get("full_title") or h.get("title", ""),
-                "media_type": h.get("media_type", ""),
-                "user": h.get("friendly_name", ""),
-                "platform": h.get("platform", ""),
-                "player": h.get("player", ""),
-                "date": h.get("date"),
-                "duration_s": h.get("duration"),
-                "transcode_decision": h.get("transcode_decision", ""),
-                "watched_status": h.get("watched_status"),
-                "percent_complete": h.get("percent_complete"),
-            }
-            for h in hist["data"]
-        ]
+        normalized_recent = []
+        for h in hist["data"]:
+            recent_item = normalize_tautulli_session(h)
+            recent_item.update(
+                {
+                    "date": h.get("date"),
+                    "duration_s": h.get("duration"),
+                    "watched_status": h.get("watched_status"),
+                    "percent_complete": h.get("percent_complete"),
+                }
+            )
+            normalized_recent.append(recent_item)
+        result["recent"] = normalized_recent
 
     # Plays by date (last 30 days)
     plays = _tautulli_api("get_plays_by_date", time_range="30")

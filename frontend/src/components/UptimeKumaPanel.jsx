@@ -19,10 +19,16 @@ function cleanUrl(url) {
   try { return new URL(url).hostname; } catch { return url; }
 }
 
+function shouldHideHost(host) {
+  return typeof host === 'string' && host.toLowerCase().endsWith('.majjix.com');
+}
+
 function MonitorCard({ monitor }) {
   const s = STATUS_MAP[monitor.status] ?? STATUS_MAP[2];
   const MonitorIcon = TYPE_ICON[monitor.type] ?? Activity;
-  const displayHost = cleanUrl(monitor.url) || monitor.hostname || '';
+  const rawHost = cleanUrl(monitor.url) || monitor.hostname || '';
+  const displayHost = shouldHideHost(rawHost) ? '' : rawHost;
+  const showLatency = monitor.type === 'dns';
 
   return (
     <div className={`metric-card accent-slate p-3 flex flex-col gap-2`}>
@@ -44,7 +50,7 @@ function MonitorCard({ monitor }) {
           <span className="font-mono truncate">{displayHost}</span>
         )}
         <div className="flex items-center gap-2 shrink-0 ml-auto">
-          {monitor.response_time_ms != null && (
+          {showLatency && monitor.response_time_ms != null && (
             <span className={`tabular-nums font-medium ${
               monitor.response_time_ms < 100 ? 'text-emerald-500/70'
               : monitor.response_time_ms < 500 ? 'text-amber-500/70'

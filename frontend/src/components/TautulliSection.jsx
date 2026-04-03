@@ -92,13 +92,13 @@ function summaryTone(score) {
 
 function SummaryPill({ label, value, sub, tone = 'text-slate-100', icon: Icon }) {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 min-w-[150px]">
+    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 min-w-[112px]">
       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
         {Icon && <Icon size={10} strokeWidth={2.4} />}
         {label}
       </div>
-      <div className={`mt-2 text-lg font-semibold tabular-nums ${tone}`}>{value}</div>
-      {sub && <div className="mt-1 text-[11px] leading-snug text-slate-500">{sub}</div>}
+      <div className={`mt-1.5 text-base font-semibold tabular-nums ${tone}`}>{value}</div>
+      {sub && <div className="sr-only">{sub}</div>}
     </div>
   );
 }
@@ -151,21 +151,24 @@ function SessionRow({ session }) {
 }
 
 function RecentRow({ item }) {
-  const playback = item.transcode_decision === 'transcode' ? 'Transcode' : item.transcode_decision === 'copy' ? 'Direct Stream' : 'Direct Play';
   return (
     <tr className="border-b border-white/[0.02]">
       <td className="py-2 px-3">
         <div className="flex min-w-0 items-start gap-2">
           {item.media_type === 'movie' ? <Film size={11} className="text-violet-400 shrink-0 mt-0.5" /> : <Tv size={11} className="text-cyan-400 shrink-0 mt-0.5" />}
           <div className="min-w-0">
-            <div className="text-slate-300 truncate max-w-[320px]">{item.title}</div>
-            <div className="mt-1 truncate text-[10px] text-slate-500">
-              {playback} · {item.platform || item.player || 'Unknown player'}
-            </div>
+            <div className="text-slate-300 truncate max-w-[280px]">{item.title}</div>
           </div>
         </div>
       </td>
       <td className="py-2 px-3 text-slate-400">{item.user}</td>
+      <td className="py-2 px-3 text-slate-400">{item.player || item.platform || '—'}</td>
+      <td className="py-2 px-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StreamDecisionBadge decision={item.transcode_decision} />
+          {item.location && <StreamLocationBadge location={item.location} />}
+        </div>
+      </td>
       <td className="py-2 px-3 tabular-nums text-slate-400">{fmtDuration(item.duration_s)}</td>
       <td className="py-2 px-3 text-slate-500 text-[10px]">{fmtAge(item.date)}</td>
     </tr>
@@ -211,10 +214,7 @@ export default function TautulliSection({ data }) {
   const sessions = data.sessions || [];
   const recent = data.recent || [];
   const quality = data.quality_summary || {};
-  const lanStreams = quality.lan_stream_count ?? data.lan_stream_count ?? 0;
-  const wanStreams = quality.wan_stream_count ?? data.wan_stream_count ?? 0;
   const avgScore = quality.avg_score;
-  const statusCounts = quality.status_counts || {};
   const qualityHelp = 'Inferred stream health score from playback method, transcode speed, bitrate reduction, resolution changes, and remote-session constraints. It is a delivery health estimate, not a direct viewer QoE measurement.';
 
   return (
@@ -239,20 +239,27 @@ export default function TautulliSection({ data }) {
               <SummaryPill
                 label="Streams"
                 value={streams}
-                sub={streams > 0 ? `${lanStreams} LAN · ${wanStreams} WAN` : 'No active streams'}
                 tone={streams > 0 ? 'text-emerald-400' : 'text-slate-300'}
               />
               <SummaryPill
-                label="Bandwidth"
+                label="Total BW"
                 value={fmtBandwidth(data.total_bandwidth_mbps || 0)}
-                sub={`LAN: ${fmtBandwidth(data.lan_bandwidth_mbps || 0)} · WAN: ${fmtBandwidth(data.wan_bandwidth_mbps || 0)}`}
                 tone={data.total_bandwidth_mbps > 0 ? 'text-cyan-400' : 'text-slate-300'}
                 icon={Wifi}
               />
               <SummaryPill
+                label="LAN BW"
+                value={fmtBandwidth(data.lan_bandwidth_mbps || 0)}
+                tone={(data.lan_bandwidth_mbps || 0) > 0 ? 'text-blue-400' : 'text-slate-300'}
+              />
+              <SummaryPill
+                label="WAN BW"
+                value={fmtBandwidth(data.wan_bandwidth_mbps || 0)}
+                tone={(data.wan_bandwidth_mbps || 0) > 0 ? 'text-cyan-400' : 'text-slate-300'}
+              />
+              <SummaryPill
                 label="Overall Health"
                 value={avgScore ?? '—'}
-                sub={`${statusCounts.Excellent || 0} excellent · ${statusCounts.Good || 0} good · ${statusCounts.Watch || 0} watch · ${statusCounts.Poor || 0} poor · ${statusCounts.Critical || 0} critical`}
                 tone={summaryTone(avgScore)}
               />
             </div>
@@ -292,6 +299,8 @@ export default function TautulliSection({ data }) {
                   <tr className="text-[10px] uppercase tracking-widest text-slate-400 border-b border-white/[0.04]">
                     <th className="text-left py-2 px-3 font-semibold">Title</th>
                     <th className="text-left py-2 px-3 font-semibold">User</th>
+                    <th className="text-left py-2 px-3 font-semibold">Player</th>
+                    <th className="text-left py-2 px-3 font-semibold">Delivery</th>
                     <th className="text-left py-2 px-3 font-semibold">Duration</th>
                     <th className="text-left py-2 px-3 font-semibold">When</th>
                   </tr>

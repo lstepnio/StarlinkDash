@@ -25,7 +25,7 @@ COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
-COPY backend/app.py ./
+COPY backend/app.py backend/stream_health.py ./
 
 # Copy built frontend from stage 1
 COPY --from=frontend-build /app/frontend/dist ./static

@@ -19,7 +19,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import starlink_grpc
-from backend.stream_health import normalize_tautulli_session, summarize_stream_health
+try:
+    from backend.stream_health import normalize_tautulli_session, summarize_stream_health
+except ModuleNotFoundError:  # Container runtime copies modules into /app without the backend package path.
+    from stream_health import normalize_tautulli_session, summarize_stream_health
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO").upper(),

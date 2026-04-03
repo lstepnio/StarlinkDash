@@ -14,21 +14,15 @@ const TYPE_ICON = {
   push: Activity,
 };
 
-function cleanUrl(url) {
-  if (!url || url === 'https://') return null;
-  try { return new URL(url).hostname; } catch { return url; }
-}
-
-function shouldHideHost(host) {
-  return typeof host === 'string' && host.toLowerCase().endsWith('.majjix.com');
-}
-
 function MonitorCard({ monitor }) {
   const s = STATUS_MAP[monitor.status] ?? STATUS_MAP[2];
   const MonitorIcon = TYPE_ICON[monitor.type] ?? Activity;
-  const rawHost = cleanUrl(monitor.url) || monitor.hostname || '';
-  const displayHost = shouldHideHost(rawHost) ? '' : rawHost;
   const showLatency = monitor.type === 'dns';
+  const latencyClass = monitor.response_time_ms < 100
+    ? 'text-emerald-500/70'
+    : monitor.response_time_ms < 500
+      ? 'text-amber-500/70'
+      : 'text-red-500/70';
 
   return (
     <div className={`metric-card accent-slate p-3 flex flex-col gap-2`}>
@@ -44,29 +38,11 @@ function MonitorCard({ monitor }) {
         </div>
       </div>
 
-      {/* Bottom row: host + response time + cert */}
-      <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400">
-        {displayHost && (
-          <span className="font-mono truncate">{displayHost}</span>
-        )}
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
-          {showLatency && monitor.response_time_ms != null && (
-            <span className={`tabular-nums font-medium ${
-              monitor.response_time_ms < 100 ? 'text-emerald-500/70'
-              : monitor.response_time_ms < 500 ? 'text-amber-500/70'
-              : 'text-red-500/70'
-            }`}>{Math.round(monitor.response_time_ms)}ms</span>
-          )}
-          {monitor.cert_days != null && (
-            <span className={`flex items-center gap-0.5 ${
-              monitor.cert_days < 14 ? 'text-red-400' : monitor.cert_days < 30 ? 'text-amber-400' : 'text-slate-600'
-            }`}>
-              <Shield size={9} />
-              {monitor.cert_days}d
-            </span>
-          )}
+      {showLatency && monitor.response_time_ms != null && (
+        <div className={`text-[10px] tabular-nums font-medium ${latencyClass}`}>
+          {Math.round(monitor.response_time_ms)}ms
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -87,6 +63,8 @@ export default function UptimeKumaPanel({ monitors }) {
 
   // Sort: DOWN first, then by name
   const sorted = [...monitors].sort((a, b) => {
+    if (a.type === 'dns' && b.type !== 'dns') return -1;
+    if (b.type === 'dns' && a.type !== 'dns') return 1;
     if (a.status === 0 && b.status !== 0) return -1;
     if (b.status === 0 && a.status !== 0) return 1;
     return a.name.localeCompare(b.name);

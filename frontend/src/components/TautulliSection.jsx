@@ -35,17 +35,6 @@ function healthTone(status) {
   }
 }
 
-function confidenceTone(confidence) {
-  switch (confidence) {
-    case 'high':
-      return 'text-emerald-300';
-    case 'medium':
-      return 'text-amber-300';
-    default:
-      return 'text-slate-400';
-  }
-}
-
 function StreamDecisionBadge({ decision }) {
   const value = (decision || '').toLowerCase();
   const label = value === 'transcode' ? 'Transcode' : value === 'copy' ? 'Direct Stream' : 'Direct Play';
@@ -80,6 +69,19 @@ function fmtBandwidth(mbps) {
   if (mbps == null) return '—';
   if (mbps >= 1000) return `${(mbps / 1000).toFixed(1)} Gbps`;
   return `${mbps.toFixed(1)} Mbps`;
+}
+
+function fmtHistoryNetworkUsage(item) {
+  if (item.bandwidth_mbps != null) {
+    return fmtBandwidth(item.bandwidth_mbps);
+  }
+  if (item.stream_video_bitrate != null) {
+    return `~${fmtBandwidth(item.stream_video_bitrate / 1000)}`;
+  }
+  if (item.source_video_bitrate != null) {
+    return `src ${fmtBandwidth(item.source_video_bitrate / 1000)}`;
+  }
+  return '—';
 }
 
 function summaryTone(score) {
@@ -125,16 +127,11 @@ function SessionRow({ session }) {
       <td className="py-2 px-3 text-slate-400">{session.user}</td>
       <td className="py-2 px-3 text-slate-400">{session.player || session.platform}</td>
       <td className="py-2 px-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold tabular-nums text-slate-100">{session.streamHealthScore ?? '—'}</span>
-            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${healthTone(session.streamHealthStatus)}`}>
-              {session.streamHealthStatus || 'Unknown'}
-            </span>
-          </div>
-          <div className={`text-[10px] uppercase tracking-wide ${confidenceTone(session.streamHealthConfidence)}`}>
-            {session.streamHealthConfidence || 'low'} confidence
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold tabular-nums text-slate-100">{session.streamHealthScore ?? '—'}</span>
+          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${healthTone(session.streamHealthStatus)}`}>
+            {session.streamHealthStatus || 'Unknown'}
+          </span>
         </div>
       </td>
       <td className="py-2 px-3 tabular-nums text-slate-400">{session.progress_pct}%</td>
@@ -171,16 +168,11 @@ function RecentRow({ item }) {
       <td className="py-2 px-3 text-slate-400">{item.user}</td>
       <td className="py-2 px-3 text-slate-400">{item.player || item.platform || '—'}</td>
       <td className="py-2 px-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold tabular-nums text-slate-100">{item.streamHealthScore ?? '—'}</span>
-            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${healthTone(item.streamHealthStatus)}`}>
-              {item.streamHealthStatus || 'Unknown'}
-            </span>
-          </div>
-          <div className={`text-[10px] uppercase tracking-wide ${confidenceTone(item.streamHealthConfidence)}`}>
-            {item.streamHealthConfidence || 'low'} confidence
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold tabular-nums text-slate-100">{item.streamHealthScore ?? '—'}</span>
+          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${healthTone(item.streamHealthStatus)}`}>
+            {item.streamHealthStatus || 'Unknown'}
+          </span>
         </div>
       </td>
       <td className="py-2 px-3">
@@ -189,7 +181,7 @@ function RecentRow({ item }) {
           <StreamLocationBadge location={item.location} />
         </div>
       </td>
-      <td className="py-2 px-3 tabular-nums text-slate-400">{fmtBandwidth(item.bandwidth_mbps)}</td>
+      <td className="py-2 px-3 tabular-nums text-slate-400">{fmtHistoryNetworkUsage(item)}</td>
       <td className="py-2 px-3 tabular-nums text-slate-400">{fmtDuration(item.duration_s)}</td>
       <td className="py-2 px-3 text-slate-500 text-[10px]">{fmtAge(item.date)}</td>
     </tr>

@@ -341,6 +341,10 @@ def summarize_stream_health(sessions: list[Mapping[str, Any]]) -> dict[str, Any]
 
 def normalize_tautulli_session(raw_session: Mapping[str, Any]) -> dict[str, Any]:
     """Normalize a Tautulli session into the app's stable session shape."""
+    raw_bandwidth_kbps = _safe_float(_first_present(raw_session, "bandwidth"))
+    source_video_bitrate = _safe_float(_first_present(raw_session, "source_video_bitrate", "video_bitrate", "source_bitrate"))
+    stream_video_bitrate = _safe_float(_first_present(raw_session, "stream_video_bitrate", "stream_bitrate"))
+
     normalized = {
         "user": _clean_text(_first_present(raw_session, "friendly_name", "user")),
         "title": _clean_text(_first_present(raw_session, "full_title", "title")),
@@ -353,12 +357,12 @@ def normalize_tautulli_session(raw_session: Mapping[str, Any]) -> dict[str, Any]
         "platform": _clean_text(_first_present(raw_session, "platform")),
         "player": _clean_text(_first_present(raw_session, "player")),
         "quality": _clean_text(_first_present(raw_session, "quality_profile")),
-        "bandwidth_mbps": round((_safe_float(_first_present(raw_session, "bandwidth")) or 0) / 1000, 1),
+        "bandwidth_mbps": round(raw_bandwidth_kbps / 1000, 1) if raw_bandwidth_kbps is not None else None,
         "location": _clean_text(_first_present(raw_session, "location")),
         "transcode_speed": _safe_float(_first_present(raw_session, "transcode_speed", "speed")),
         "transcode_throttled": _truthy(_first_present(raw_session, "transcode_throttled", "throttled")),
-        "source_video_bitrate": _safe_float(_first_present(raw_session, "source_video_bitrate", "video_bitrate", "source_bitrate")),
-        "stream_video_bitrate": _safe_float(_first_present(raw_session, "stream_video_bitrate", "stream_bitrate")),
+        "source_video_bitrate": source_video_bitrate,
+        "stream_video_bitrate": stream_video_bitrate,
         "source_video_resolution": _clean_text(_first_present(raw_session, "source_video_resolution", "video_resolution")),
         "stream_video_resolution": _clean_text(_first_present(raw_session, "stream_video_resolution", "stream_resolution")),
         "has_error": _truthy(_first_present(raw_session, "error", "session_error", "has_error")),

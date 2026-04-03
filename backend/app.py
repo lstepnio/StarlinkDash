@@ -1846,6 +1846,36 @@ def _ai_supports_temperature_override() -> bool:
     return not (AI_PROVIDER == "openai" and AI_MODEL.lower().startswith("gpt-5"))
 
 
+def _extract_json_object(text: str) -> dict[str, Any] | None:
+    text = (text or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, dict) else None
+    except json.JSONDecodeError:
+        pass
+
+    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.DOTALL)
+    if fenced:
+        try:
+            parsed = json.loads(fenced.group(1))
+            return parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            pass
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        snippet = text[start:end + 1]
+        try:
+            parsed = json.loads(snippet)
+            return parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            return None
+    return None
+
+
 def _call_ai_completion(prompt: str, facts: list[dict[str, str]], labels: dict[str, str], prompt_hash: str) -> dict[str, Any]:
     system_prompt = (
         "You are the Home Dashboard operations assistant. "
@@ -1904,11 +1934,29 @@ def _call_ai_completion(prompt: str, facts: list[dict[str, str]], labels: dict[s
 
     choice = (payload.get("choices") or [{}])[0]
     message = _extract_message_content((choice.get("message") or {}).get("content"))
-    try:
-        parsed = json.loads(message)
-    except json.JSONDecodeError:
-        _record_service_error("ai", "AI response could not be parsed.")
-        raise HTTPException(status_code=502, detail=_public_error("AI provider returned an unexpected response.", code="ai_invalid_response"))
+    parsed = _extract_json_object(message)
+    if parsed is None:
+        fallback_answer = _sanitize_text(message)[:1200]
+        if not fallback_answer:
+            _record_service_error("ai", "AI response could not be parsed.")
+            log.warning(
+                "AI response parse failed prompt_hash=%s provider=%s model=%s finish_reason=%s raw=%s",
+                prompt_hash,
+                AI_PROVIDER,
+                AI_MODEL,
+                choice.get("finish_reason"),
+                (message or "")[:400],
+            )
+            raise HTTPException(status_code=502, detail=_public_error("AI provider returned an unexpected response.", code="ai_invalid_response"))
+        log.warning(
+            "AI response used plain-text fallback prompt_hash=%s provider=%s model=%s finish_reason=%s raw=%s",
+            prompt_hash,
+            AI_PROVIDER,
+            AI_MODEL,
+            choice.get("finish_reason"),
+            fallback_answer[:240],
+        )
+        parsed = {"answer": fallback_answer, "used_fact_ids": []}
 
     answer = _sanitize_text(parsed.get("answer", ""))[:1200]
     used_ids = [fid for fid in parsed.get("used_fact_ids", []) if fid in labels][:6]

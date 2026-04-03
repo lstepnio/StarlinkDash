@@ -1842,6 +1842,10 @@ def _ai_uses_max_completion_tokens() -> bool:
     return AI_PROVIDER == "openai" and AI_MODEL.lower().startswith("gpt-5")
 
 
+def _ai_supports_temperature_override() -> bool:
+    return not (AI_PROVIDER == "openai" and AI_MODEL.lower().startswith("gpt-5"))
+
+
 def _call_ai_completion(prompt: str, facts: list[dict[str, str]], labels: dict[str, str], prompt_hash: str) -> dict[str, Any]:
     system_prompt = (
         "You are the Home Dashboard operations assistant. "
@@ -1853,13 +1857,14 @@ def _call_ai_completion(prompt: str, facts: list[dict[str, str]], labels: dict[s
     )
     body = {
         "model": AI_MODEL,
-        "temperature": AI_TEMPERATURE,
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": json.dumps({"question": prompt, "facts": facts}, ensure_ascii=False)},
         ],
     }
+    if _ai_supports_temperature_override():
+        body["temperature"] = AI_TEMPERATURE
     token_limit_key = "max_completion_tokens" if _ai_uses_max_completion_tokens() else "max_tokens"
     body[token_limit_key] = AI_MAX_OUTPUT_TOKENS
     req = urllib.request.Request(

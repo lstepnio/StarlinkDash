@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import starlink_grpc
+from backend.stream_health import normalize_tautulli_session, summarize_stream_health
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO").upper(),
@@ -1521,22 +1522,47 @@ def fetch_tautulli_status() -> dict:
         result["wan_bandwidth_mbps"] = round(int(activity.get("wan_bandwidth", 0)) / 1000, 1)
         result["transcode_count"] = int(activity.get("stream_count_transcode", 0))
         result["direct_play_count"] = int(activity.get("stream_count_direct_play", 0))
-        result["sessions"] = [
-            {
-                "user": s.get("friendly_name") or s.get("user", ""),
-                "title": s.get("full_title") or s.get("title", ""),
-                "media_type": s.get("media_type", ""),
-                "state": s.get("state", ""),
-                "progress_pct": int(s.get("progress_percent", 0)),
-                "transcode_decision": s.get("transcode_decision", ""),
-                "platform": s.get("platform", ""),
-                "player": s.get("player", ""),
-                "quality": s.get("quality_profile", ""),
-                "bandwidth_mbps": round(int(s.get("bandwidth", 0)) / 1000, 1),
-                "location": s.get("location", ""),
-            }
-            for s in sessions
-        ]
+        normalized_sessions = []
+        lan_sessions = 0
+        wan_sessions = 0
+        transcode_streams = 0
+        direct_stream_count = int(activity.get("stream_count_direct_stream", 0))
+        direct_play_count = int(activity.get("stream_count_direct_play", 0))
+        paused_sessions = 0
+
+        for s in sessions:
+            normalized = normalize_tautulli_session(s)
+            decision = (normalized.get("transcode_decision") or "").strip().lower()
+            location = (normalized.get("location") or "").strip().lower()
+            state = (normalized.get("state") or "").strip().lower()
+            if location == "lan":
+                lan_sessions += 1
+            elif location == "wan":
+                wan_sessions += 1
+            if decision == "transcode":
+                transcode_streams += 1
+            if state == "paused":
+                paused_sessions += 1
+
+            normalized_sessions.append(normalized)
+
+        result["direct_stream_count"] = direct_stream_count
+        result["lan_stream_count"] = lan_sessions
+        result["wan_stream_count"] = wan_sessions
+        result["paused_stream_count"] = paused_sessions
+        stream_health_summary = summarize_stream_health(normalized_sessions)
+        result["quality_summary"] = {
+            "direct_play_count": direct_play_count,
+            "direct_stream_count": direct_stream_count,
+            "transcode_count": transcode_streams,
+            "lan_stream_count": lan_sessions,
+            "wan_stream_count": wan_sessions,
+            "healthy_stream_count": stream_health_summary["healthy_stream_count"],
+            "critical_stream_count": stream_health_summary["critical_stream_count"],
+            "avg_score": stream_health_summary["avg_score"],
+            "status_counts": stream_health_summary["status_counts"],
+        }
+        result["sessions"] = normalized_sessions
 
     # Libraries
     libs = _tautulli_api("get_libraries")
@@ -1552,7 +1578,7 @@ def fetch_tautulli_status() -> dict:
         ]
 
     # Recent history (last 5)
-    hist = _tautulli_api("get_history", length="5")
+    hist = _tautulli_api("get_history", length="8")
     if hist and hist.get("data"):
         result["recent"] = [
             {

@@ -10,7 +10,7 @@ It is designed for operators who want one place to view Starlink health, WAN fai
 - Router WAN failover monitoring over SNMP, including richer interface state details
 - Optional Speedtest Tracker benchmark history
 - Optional Uptime Kuma service health
-- Optional Tautulli media activity
+- Optional Tautulli media activity and inferred stream health scoring
 - Optional read-only AI assistant for concise operational summaries
 - Docker-first deployment with health endpoints and container healthcheck
 
@@ -32,6 +32,8 @@ For a fuller first-run guide, see [QUICKSTART.md](/Users/lukasz.stepniowski/Deve
 - Packaging: multi-stage Docker image and Docker Compose
 
 See [ARCHITECTURE.md](/Users/lukasz.stepniowski/Development/StarlinkDash/ARCHITECTURE.md) for more detail.
+
+For the Plex/Tautulli stream health model, see [STREAM_HEALTH.md](/Users/lukasz.stepniowski/Development/StarlinkDash/STREAM_HEALTH.md).
 
 ## Configuration
 

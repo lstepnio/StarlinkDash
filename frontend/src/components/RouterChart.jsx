@@ -53,6 +53,7 @@ export default function RouterChart({ routerHistory }) {
   const avgW1In  = wan.reduce((s, d) => s + d.wan1In,  0) / wan.length;
   const avgW2In  = wan.reduce((s, d) => s + d.wan2In,  0) / wan.length;
   const peakIn   = Math.max(...wan.map((d) => Math.max(d.wan1In, d.wan2In)));
+  const latestSystem = system.at(-1);
 
   const allVals = wan.flatMap((d) => [d.wan1In, d.wan1Out, d.wan2In, d.wan2Out]);
   const maxVal  = Math.max(...allVals, 0.01);
@@ -63,6 +64,17 @@ export default function RouterChart({ routerHistory }) {
       <span className="text-slate-500">WAN1 avg: <span className="text-blue-400 font-semibold">{fmtBps(avgW1In * 1e6)} ↓</span></span>
       <span className="text-slate-500">WAN2: <span className="text-amber-400 font-semibold">{fmtBps(avgW2In * 1e6)} ↓</span></span>
       <span className="text-slate-500">Peak: <span className="text-slate-300 font-semibold">{fmtBps(peakIn * 1e6)}</span></span>
+    </div>
+  );
+
+  const systemStats = (
+    <div className="flex flex-wrap gap-3 text-xs">
+      <span className="text-slate-500">
+        CPU: <span className="text-amber-400 font-semibold">{latestSystem?.cpu != null ? `${latestSystem.cpu.toFixed(1)}%` : '—'}</span>
+      </span>
+      <span className="text-slate-500">
+        Memory: <span className="text-blue-400 font-semibold">{latestSystem?.mem != null ? `${latestSystem.mem.toFixed(0)}%` : '—'}</span>
+      </span>
     </div>
   );
 
@@ -106,9 +118,9 @@ export default function RouterChart({ routerHistory }) {
       </ChartCard>
 
       {/* CPU + Memory */}
-      <ChartCard title="Router CPU & Memory">
+      <ChartCard title="Router CPU & Memory" action={systemStats}>
         <ResponsiveContainer width="100%" height={185}>
-          <ComposedChart data={system} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
+          <ComposedChart data={system} margin={{ top: 4, right: 4, left: 8, bottom: 0 }}>
             <defs>
               <linearGradient id="gCpu" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.2} />
@@ -123,8 +135,14 @@ export default function RouterChart({ routerHistory }) {
             <XAxis dataKey="ts" type="number" domain={['dataMin','dataMax']} scale="time"
               tick={{ fontSize: 10, fill: '#475569' }} tickFormatter={formatTime}
               stroke="transparent" minTickGap={60} />
-            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#475569' }} stroke="transparent"
-              width={35} tickFormatter={(v) => `${v}%`} />
+            <YAxis
+              domain={[0, 100]}
+              ticks={[0, 25, 50, 75, 100]}
+              tick={{ fontSize: 10, fill: '#475569' }}
+              stroke="transparent"
+              width={44}
+              tickFormatter={(v) => `${v}%`}
+            />
             <Tooltip {...tooltipStyle}
               labelFormatter={(v) => new Date(v).toLocaleTimeString()}
               formatter={(v, name) => [`${v != null ? v.toFixed(1) : '—'}%`, name]} />

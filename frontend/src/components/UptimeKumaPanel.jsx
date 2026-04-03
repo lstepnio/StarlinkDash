@@ -58,8 +58,9 @@ export default function UptimeKumaPanel({ monitors }) {
 
   const upCount   = monitors.filter((m) => m.status === 1).length;
   const downCount = monitors.filter((m) => m.status === 0).length;
+  const nonOperationalCount = monitors.filter((m) => m.status !== 1).length;
   const total     = monitors.length;
-  const allUp     = downCount === 0;
+  const allUp     = nonOperationalCount === 0;
 
   // Sort: DOWN first, then by name
   const sorted = [...monitors].sort((a, b) => {
@@ -82,7 +83,9 @@ export default function UptimeKumaPanel({ monitors }) {
         <span className={`text-xs font-medium ${allUp ? 'text-emerald-500/70' : 'text-red-300'}`}>
           {allUp
             ? `All ${total} services operational`
-            : `${downCount} service${downCount > 1 ? 's' : ''} down · ${upCount}/${total} operational`}
+            : downCount > 0
+              ? `${downCount} service${downCount > 1 ? 's' : ''} down · ${upCount}/${total} operational`
+              : `${nonOperationalCount} service${nonOperationalCount > 1 ? 's' : ''} pending or in maintenance · ${upCount}/${total} operational`}
         </span>
       </div>
 

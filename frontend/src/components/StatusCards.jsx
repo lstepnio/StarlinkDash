@@ -75,6 +75,12 @@ export default function StatusCards({ status }) {
   const rawSlot = h.seconds_to_first_nonempty_slot;
   const slotSec = rawSlot != null && rawSlot < 1e9 ? rawSlot : null;
   const slotLabel = slotSec == null ? 'None' : slotSec < 60 ? `${slotSec.toFixed(0)}s` : `${(slotSec / 60).toFixed(1)}m`;
+  const obstructionFrac = h.fraction_obstructed;
+  const obstructionSub = h.currently_obstructed
+    ? 'Currently blocked'
+    : obstructionFrac > 0
+      ? 'Some sky blocked'
+      : 'Path clear';
 
   return (
     <div className="space-y-3">
@@ -128,10 +134,10 @@ export default function StatusCards({ status }) {
         <DetailCard
           icon={AlertTriangle}
           label="Obstruction"
-          value={h.fraction_obstructed != null ? (h.fraction_obstructed * 100).toFixed(2) : '—'}
-          unit={h.fraction_obstructed != null ? '%' : ''}
-          color={h.fraction_obstructed > 0.05 ? 'text-red-400' : h.fraction_obstructed > 0.01 ? 'text-amber-400' : 'text-emerald-400'}
-          sub={h.currently_obstructed ? 'Currently blocked' : 'Path clear'}
+          value={obstructionFrac != null ? (obstructionFrac * 100).toFixed(2) : '—'}
+          unit={obstructionFrac != null ? '%' : ''}
+          color={obstructionFrac > 0.05 ? 'text-red-400' : obstructionFrac > 0.01 ? 'text-amber-400' : 'text-emerald-400'}
+          sub={obstructionFrac != null ? obstructionSub : undefined}
         />
         <DetailCard
           icon={Thermometer}

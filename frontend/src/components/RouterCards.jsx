@@ -157,7 +157,7 @@ export default function RouterCards({ routerStatus }) {
           <div>
             <span className="text-sm font-semibold text-amber-300">Failover Active</span>
             <span className="text-xs text-amber-400/60 ml-3">
-              Traffic routing via {r.wan2_iface ?? 'eth2'} (failover) because primary uplink {r.wan1_iface ?? 'eth1'} is down
+              Traffic is currently routing via {r.wan2_iface ?? 'eth2'} instead of the primary uplink {r.wan1_iface ?? 'eth1'}
             </span>
           </div>
         </div>

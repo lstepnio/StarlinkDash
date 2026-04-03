@@ -139,7 +139,7 @@ def test_missing_speed_reduces_confidence_for_transcode():
     assert session["streamHealthScore"] == 65
     assert session["streamHealthStatus"] == "Watch"
     assert session["streamHealthConfidence"] == "medium"
-    assert "Missing transcode speed; score confidence reduced" in session["streamHealthReasons"]
+    assert "Missing transcode speed" in session["streamHealthReasons"]
 
 
 def test_resolution_reduction_two_tiers_penalizes():

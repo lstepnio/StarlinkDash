@@ -133,7 +133,7 @@ function App() {
           <SectionBlock
             eyebrow="Health"
             title="Service health"
-            description="External checks from Uptime Kuma with down services surfaced first."
+            description="External checks from Uptime Kuma with DNS monitors grouped first and non-healthy services called out clearly."
           >
             <UptimeKumaPanel monitors={uptimeMonitors} />
           </SectionBlock>

@@ -24,6 +24,13 @@ function fmtAge(ts) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+function fmtMetric(value, decimals = 1, unit = '') {
+  if (value == null) {
+    return { value: '—', unit: '' };
+  }
+  return { value: value.toFixed(decimals), unit };
+}
+
 function MetricBadge({ icon: Icon, label, value, unit, color }) {
   return (
     <div className="metric-card accent-slate p-4 flex flex-col gap-1">
@@ -64,6 +71,17 @@ export default function SpeedtestSection({ latest, history }) {
 
   const downMax = stats ? Math.ceil(stats.maxDown / 50) * 50 || 100 : 100;
   const pingMax = stats ? Math.ceil(stats.maxPing / 10) * 10 || 50 : 50;
+  const latestDownload = fmtMetric(latest?.download_mbps, 1, 'Mbps');
+  const latestUpload = fmtMetric(latest?.upload_mbps, 1, 'Mbps');
+  const latestPing = fmtMetric(latest?.ping_ms, 1, 'ms');
+  const latestJitter = fmtMetric(latest?.jitter_ms, 1, 'ms');
+  const pingTone = latest?.ping_ms == null
+    ? 'text-slate-300'
+    : latest.ping_ms < 20
+      ? 'text-emerald-400'
+      : latest.ping_ms < 50
+        ? 'text-amber-400'
+        : 'text-red-400';
 
   return (
     <div className="space-y-4">
@@ -87,14 +105,13 @@ export default function SpeedtestSection({ latest, history }) {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <MetricBadge icon={ArrowDown} label="Download" color="text-cyan-400"
-              value={(latest.download_mbps || 0).toFixed(1)} unit="Mbps" />
+              value={latestDownload.value} unit={latestDownload.unit} />
             <MetricBadge icon={ArrowUp} label="Upload" color="text-violet-400"
-              value={(latest.upload_mbps || 0).toFixed(1)} unit="Mbps" />
-            <MetricBadge icon={Wifi} label="Ping" color={
-              latest.ping_ms < 20 ? 'text-emerald-400' : latest.ping_ms < 50 ? 'text-amber-400' : 'text-red-400'
-            } value={(latest.ping_ms || 0).toFixed(1)} unit="ms" />
+              value={latestUpload.value} unit={latestUpload.unit} />
+            <MetricBadge icon={Wifi} label="Ping" color={pingTone}
+              value={latestPing.value} unit={latestPing.unit} />
             <MetricBadge icon={Clock} label="Jitter" color="text-blue-400"
-              value={latest.jitter_ms != null ? (latest.jitter_ms).toFixed(1) : '—'} unit={latest.jitter_ms != null ? 'ms' : ''} />
+              value={latestJitter.value} unit={latestJitter.unit} />
           </div>
         </div>
       ) : (

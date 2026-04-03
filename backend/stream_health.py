@@ -259,7 +259,7 @@ def score_stream_session(session: Mapping[str, Any]) -> dict[str, Any]:
     if transcode_active:
         if transcode_speed is None:
             missing_speed = True
-            reasons.append("Missing transcode speed; score confidence reduced")
+            reasons.append("Missing transcode speed")
         else:
             score -= _speed_penalty(transcode_speed)
             reasons.append(f"Transcode speed {transcode_speed:.2f}x")

@@ -1838,6 +1838,10 @@ def _extract_message_content(message: Any) -> str:
     return str(message or "")
 
 
+def _ai_uses_max_completion_tokens() -> bool:
+    return AI_PROVIDER == "openai" and AI_MODEL.lower().startswith("gpt-5")
+
+
 def _call_ai_completion(prompt: str, facts: list[dict[str, str]], labels: dict[str, str], prompt_hash: str) -> dict[str, Any]:
     system_prompt = (
         "You are the Home Dashboard operations assistant. "
@@ -1850,13 +1854,14 @@ def _call_ai_completion(prompt: str, facts: list[dict[str, str]], labels: dict[s
     body = {
         "model": AI_MODEL,
         "temperature": AI_TEMPERATURE,
-        "max_tokens": AI_MAX_OUTPUT_TOKENS,
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": json.dumps({"question": prompt, "facts": facts}, ensure_ascii=False)},
         ],
     }
+    token_limit_key = "max_completion_tokens" if _ai_uses_max_completion_tokens() else "max_tokens"
+    body[token_limit_key] = AI_MAX_OUTPUT_TOKENS
     req = urllib.request.Request(
         f"{AI_BASE_URL}/chat/completions",
         data=json.dumps(body).encode(),
@@ -1873,7 +1878,19 @@ def _call_ai_completion(prompt: str, facts: list[dict[str, str]], labels: dict[s
             payload = json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
         _record_service_error("ai", "AI provider rejected the request.")
-        log.warning("AI request failed prompt_hash=%s provider=%s model=%s status=%s", prompt_hash, AI_PROVIDER, AI_MODEL, e.code)
+        error_body = ""
+        try:
+            error_body = e.read().decode(errors="replace")[:400]
+        except Exception:
+            error_body = ""
+        log.warning(
+            "AI request failed prompt_hash=%s provider=%s model=%s status=%s body=%s",
+            prompt_hash,
+            AI_PROVIDER,
+            AI_MODEL,
+            e.code,
+            error_body,
+        )
         raise HTTPException(status_code=502, detail=_public_error("AI provider request failed.", code="ai_upstream_error"))
     except Exception as e:
         _record_service_error("ai", "AI provider is unavailable.")

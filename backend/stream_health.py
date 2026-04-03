@@ -363,8 +363,14 @@ def normalize_tautulli_session(raw_session: Mapping[str, Any]) -> dict[str, Any]
         "transcode_throttled": _truthy(_first_present(raw_session, "transcode_throttled", "throttled")),
         "source_video_bitrate": source_video_bitrate,
         "stream_video_bitrate": stream_video_bitrate,
-        "source_video_resolution": _clean_text(_first_present(raw_session, "source_video_resolution", "video_resolution")),
-        "stream_video_resolution": _clean_text(_first_present(raw_session, "stream_video_resolution", "stream_resolution")),
+        "source_video_resolution": _clean_text(_first_present(raw_session, "source_video_resolution", "video_full_resolution", "video_resolution")),
+        "stream_video_resolution": _clean_text(_first_present(raw_session, "stream_video_resolution", "stream_video_full_resolution", "stream_resolution")),
+        "source_video_codec": _clean_text(_first_present(raw_session, "source_video_codec", "video_codec")),
+        "stream_video_codec": _clean_text(_first_present(raw_session, "stream_video_codec", "transcode_video_codec", "video_codec")),
+        "source_audio_codec": _clean_text(_first_present(raw_session, "source_audio_codec", "audio_codec")),
+        "stream_audio_codec": _clean_text(_first_present(raw_session, "stream_audio_codec", "transcode_audio_codec", "audio_codec")),
+        "source_container": _clean_text(_first_present(raw_session, "source_container", "container")),
+        "stream_container": _clean_text(_first_present(raw_session, "stream_container", "transcode_container", "container")),
         "has_error": _truthy(_first_present(raw_session, "error", "session_error", "has_error")),
     }
     normalized.update(score_stream_session(normalized))

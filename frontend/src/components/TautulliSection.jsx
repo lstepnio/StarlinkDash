@@ -84,6 +84,61 @@ function fmtHistoryNetworkUsage(item) {
   return '—';
 }
 
+function compactText(value) {
+  return (value || '').toString().trim();
+}
+
+function sameText(a, b) {
+  return compactText(a).toLowerCase() === compactText(b).toLowerCase();
+}
+
+function prettyCodec(value) {
+  const text = compactText(value);
+  if (!text) return '';
+  return text.toUpperCase().replace(/\bH265\b/i, 'H.265').replace(/\bH264\b/i, 'H.264');
+}
+
+function prettyResolution(value) {
+  const text = compactText(value);
+  if (!text) return '';
+  return text.replace(/\b2160\b/, '2160p').replace(/\b1080\b/, '1080p').replace(/\b720\b/, '720p');
+}
+
+function formatVideoPath(session) {
+  const fromResolution = prettyResolution(session.source_video_resolution);
+  const toResolution = prettyResolution(session.stream_video_resolution);
+  const fromCodec = prettyCodec(session.source_video_codec);
+  const toCodec = prettyCodec(session.stream_video_codec);
+  const fromParts = [fromResolution, fromCodec].filter(Boolean).join(' ');
+  const toParts = [toResolution, toCodec].filter(Boolean).join(' ');
+
+  if (!fromParts || !toParts || sameText(fromParts, toParts)) return null;
+  return `Video ${fromParts} -> ${toParts}`;
+}
+
+function formatAudioPath(session) {
+  const fromCodec = prettyCodec(session.source_audio_codec);
+  const toCodec = prettyCodec(session.stream_audio_codec);
+  if (!fromCodec || !toCodec || sameText(fromCodec, toCodec)) return null;
+  return `Audio ${fromCodec} -> ${toCodec}`;
+}
+
+function formatContainerPath(session) {
+  const fromContainer = compactText(session.source_container).toUpperCase();
+  const toContainer = compactText(session.stream_container).toUpperCase();
+  if (!fromContainer || !toContainer || sameText(fromContainer, toContainer)) return null;
+  return `Container ${fromContainer} -> ${toContainer}`;
+}
+
+function buildDeliveryPath(session) {
+  const parts = [
+    formatVideoPath(session),
+    formatAudioPath(session),
+    formatContainerPath(session),
+  ].filter(Boolean);
+  return parts.join(' · ');
+}
+
 function summaryTone(score) {
   if (score == null) return 'text-slate-300';
   if (score >= 90) return 'text-emerald-400';
@@ -108,6 +163,7 @@ function SummaryPill({ label, value, sub, tone = 'text-slate-100', icon: Icon })
 function SessionRow({ session }) {
   const stateColor = session.state === 'playing' ? 'text-emerald-400' : session.state === 'paused' ? 'text-amber-400' : 'text-slate-500';
   const reasons = session.streamHealthReasons || [];
+  const deliveryPath = buildDeliveryPath(session);
   const reasonText = reasons.join(' · ');
   return (
     <tr className="border-b border-white/[0.02]">
@@ -116,6 +172,11 @@ function SessionRow({ session }) {
           {session.media_type === 'movie' ? <Film size={11} className="text-violet-400 shrink-0 mt-0.5" /> : <Tv size={11} className="text-cyan-400 shrink-0 mt-0.5" />}
           <div className="min-w-0">
             <div className="text-slate-300 truncate max-w-[280px]">{session.title}</div>
+            {deliveryPath && (
+              <div className="mt-1 truncate text-[10px] text-cyan-300/80" title={deliveryPath}>
+                {deliveryPath}
+              </div>
+            )}
             {reasonText && (
               <div className="mt-1 truncate text-[10px] text-slate-500" title={reasonText}>
                 {reasonText}
@@ -301,12 +362,12 @@ export default function TautulliSection({ data }) {
           </table>
         </div>
         {recent.length > 0 && (
-          <div className="chart-card overflow-hidden min-h-[280px] flex flex-col">
+          <div className="chart-card overflow-hidden">
             <div className="flex items-center gap-2 px-3 py-3 border-b border-white/[0.04]">
               <Eye size={12} className="text-slate-400" />
               <span className="text-xs font-semibold text-slate-300">Recently Watched</span>
             </div>
-            <div className="flex-1 overflow-auto">
+            <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-[10px] uppercase tracking-widest text-slate-400 border-b border-white/[0.04]">

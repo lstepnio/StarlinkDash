@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef } from 'react';
 import ChartCard from './ChartCard';
 
+const EPSILON = 0.001;
+
+function classifyObstructionCell(value) {
+  if (value === -1.0) return 'unknown';
+  if (value >= 1 - EPSILON) return 'clear';
+  if (value <= EPSILON) return 'blocked';
+  return 'marginal';
+}
+
 export default function ObstructionMap({ obstruction }) {
   const canvasRef = useRef(null);
   const summary = useMemo(() => {
@@ -14,10 +23,11 @@ export default function ObstructionMap({ obstruction }) {
     let sampled = 0;
 
     for (const value of obstruction.snr) {
-      if (value === -1.0) continue;
+      const classification = classifyObstructionCell(value);
+      if (classification === 'unknown') continue;
       sampled += 1;
-      if (value > 1) clear += 1;
-      else if (value > 0) marginal += 1;
+      if (classification === 'clear') clear += 1;
+      else if (classification === 'marginal') marginal += 1;
       else blocked += 1;
     }
 
@@ -95,7 +105,8 @@ export default function ObstructionMap({ obstruction }) {
           const idx = row * cols + col;
           const val = snr[idx];
 
-          if (val === -1.0) continue; // no data for this cell
+          const classification = classifyObstructionCell(val);
+          if (classification === 'unknown') continue; // no data for this cell
 
           const theta = (col / cols) * Math.PI * 2 - Math.PI / 2;
           const thetaNext = ((col + 1) / cols) * Math.PI * 2 - Math.PI / 2;
@@ -103,9 +114,9 @@ export default function ObstructionMap({ obstruction }) {
           const r2 = ((row + 1) / rows) * radius;
 
           let color;
-          if (val > 1) {
+          if (classification === 'clear') {
             color = 'rgba(16, 185, 129, 0.78)'; // clear
-          } else if (val > 0) {
+          } else if (classification === 'marginal') {
             color = 'rgba(245, 158, 11, 0.74)'; // marginal
           } else {
             color = 'rgba(239, 68, 68, 0.82)'; // obstructed
@@ -162,7 +173,7 @@ export default function ObstructionMap({ obstruction }) {
   return (
     <ChartCard
       title="Obstruction Map"
-      subtitle="Polar sky view from the dish perspective. Green is clear sky, amber is marginal, and red marks obstructed sectors."
+      subtitle="Polar sky view from the dish perspective. Green is clear sky, amber is partial obstruction, and red marks blocked sectors."
       className="flex flex-col items-center"
       action={action}
     >
